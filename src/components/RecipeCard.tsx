@@ -10,7 +10,7 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
   const placeholderImage = 'https://via.placeholder.com/400x300/22c55e/ffffff?text=Recipe'
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-200 animate-fade-in hover:scale-[1.02]">
       {/* Image */}
       <div className="relative h-48 bg-gray-200">
         <img

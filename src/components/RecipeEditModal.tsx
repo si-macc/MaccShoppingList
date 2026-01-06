@@ -23,7 +23,6 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const [imageUrl, setImageUrl] = useState(recipe.image_url || '')
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>(recipe.recipe_ingredients)
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([])
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // New ingredient form
@@ -37,7 +36,6 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   }, [])
 
   const fetchIngredients = async () => {
-    setLoading(true)
     const { data, error } = await supabase
       .from('ingredients')
       .select('*')
@@ -46,7 +44,6 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
     if (!error && data) {
       setAvailableIngredients(data)
     }
-    setLoading(false)
   }
 
   const handleAddIngredient = async () => {
@@ -71,17 +68,17 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
       if (error || !data) return
       
       ingredient = data
-      setAvailableIngredients([...availableIngredients, ingredient])
+      setAvailableIngredients([...availableIngredients, data])
     }
 
-    // Add to recipe ingredients
+    // Add to recipe ingredients (ingredient is guaranteed to be defined at this point)
     const newRecipeIngredient: RecipeIngredient = {
       id: `temp-${Date.now()}`,
       recipe_id: recipe.id,
-      ingredient_id: ingredient.id,
+      ingredient_id: ingredient!.id,
       quantity: newIngredientQuantity || null,
       unit: newIngredientUnit || null,
-      ingredient: ingredient
+      ingredient: ingredient!
     }
 
     setIngredients([...ingredients, newRecipeIngredient])
@@ -167,8 +164,8 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-slide-down">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">
