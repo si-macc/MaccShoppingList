@@ -9,5 +9,12 @@ createRoot(document.getElementById('root')!).render(
     <OfflineProvider>
       <App />
     </OfflineProvider>
+import { ThemeProvider } from './contexts/ThemeContext.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </StrictMode>,
 )
