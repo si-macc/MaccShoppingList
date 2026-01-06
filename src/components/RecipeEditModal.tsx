@@ -165,15 +165,15 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-slide-down">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-slide-down">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">
+        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             {isCreating ? 'Create Recipe' : 'Edit Recipe'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
           >
             ×
           </button>
@@ -183,52 +183,52 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
         <div className="p-6 space-y-6">
           {/* Recipe Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Recipe Name *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
               placeholder="e.g., Spaghetti Bolognese"
             />
           </div>
 
           {/* Image URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Image URL (optional)
             </label>
             <input
               type="url"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
               placeholder="https://example.com/image.jpg"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Leave empty to use placeholder image
             </p>
           </div>
 
           {/* Instructions */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Instructions (optional)
             </label>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
               placeholder="Enter cooking instructions..."
             />
           </div>
 
           {/* Ingredients */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Ingredients
             </label>
 
@@ -236,21 +236,21 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
             {ingredients.length > 0 && (
               <div className="mb-4 space-y-2">
                 {ingredients.map((ing) => (
-                  <div key={ing.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                  <div key={ing.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                     <div>
-                      <span className="font-medium text-gray-900">{ing.ingredient?.name}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</span>
                       {ing.quantity && (
-                        <span className="text-gray-600 ml-2">
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">
                           ({ing.quantity}{ing.unit || ''})
                         </span>
                       )}
-                      <span className="text-xs text-gray-500 ml-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
                         • {ing.ingredient?.sector}
                       </span>
                     </div>
                     <button
                       onClick={() => handleRemoveIngredient(ing.id)}
-                      className="text-red-600 hover:text-red-700 font-medium"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
                     >
                       Remove
                     </button>
@@ -260,8 +260,8 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
             )}
 
             {/* Add Ingredient Form */}
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">Add Ingredient</p>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Ingredient</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input
@@ -269,12 +269,12 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                   value={newIngredientName}
                   onChange={(e) => setNewIngredientName(e.target.value)}
                   placeholder="Ingredient name"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <select
                   value={newIngredientSector}
                   onChange={(e) => setNewIngredientSector(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   {SECTORS.map(sector => (
                     <option key={sector} value={sector}>{sector}</option>
@@ -288,20 +288,20 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                   value={newIngredientQuantity}
                   onChange={(e) => setNewIngredientQuantity(e.target.value)}
                   placeholder="Quantity (e.g., 500)"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <input
                   type="text"
                   value={newIngredientUnit}
                   onChange={(e) => setNewIngredientUnit(e.target.value)}
                   placeholder="Unit (e.g., g, ml)"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
                 />
               </div>
 
               <button
                 onClick={handleAddIngredient}
-                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
+                className="w-full py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition"
               >
                 + Add Ingredient
               </button>
@@ -310,10 +310,10 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
+        <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition"
+            className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           >
             Cancel
           </button>
