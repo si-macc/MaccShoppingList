@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase'
 import RecipeSelectionCard from '../components/RecipeSelectionCard'
 import StapleSelector from '../components/StapleSelector'
 import ShoppingListGrid from '../components/ShoppingListGrid'
+import { useLoadedList } from '../contexts/LoadedListContext'
 
 type ViewMode = 'selection' | 'list'
 
 export default function ShoppingListPage() {
+  const { loadedList, clearLoadedList } = useLoadedList()
   const [viewMode, setViewMode] = useState<ViewMode>('selection')
   const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
   
@@ -22,6 +24,36 @@ export default function ShoppingListPage() {
   
   // Generated list
   const [shoppingList, setShoppingList] = useState<any>(null)
+
+  // Check for loaded list from history
+  useEffect(() => {
+    if (loadedList) {
+      // Convert loaded list to shopping list format
+      const grouped = loadedList.items.reduce((acc, item) => {
+        if (!acc[item.sector]) {
+          acc[item.sector] = []
+        }
+        acc[item.sector].push({
+          name: item.name,
+          sector: item.sector,
+          quantity: item.quantity,
+          is_checked: item.is_checked
+        })
+        return acc
+      }, {} as Record<string, any[]>)
+
+      setShoppingList({
+        id: loadedList.id,
+        name: loadedList.name,
+        items: loadedList.items,
+        grouped,
+        createdAt: new Date().toISOString(),
+        isLoaded: true
+      })
+      setViewMode('list')
+      clearLoadedList()
+    }
+  }, [loadedList, clearLoadedList])
 
   useEffect(() => {
     fetchData()
