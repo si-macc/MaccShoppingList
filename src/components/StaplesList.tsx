@@ -18,21 +18,21 @@ export default function StaplesList({ staples, onEdit, onDelete }: StaplesListPr
   return (
     <div className="space-y-6">
       {Object.entries(groupedBySector).map(([sector, sectorStaples]) => (
-        <div key={sector} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">{sector}</h3>
+        <div key={sector} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+            <h3 className="font-semibold text-gray-900 dark:text-white">{sector}</h3>
           </div>
           
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {sectorStaples.map((staple) => (
               <div
                 key={staple.id}
-                className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition"
+                className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 <div className="flex items-center space-x-3">
-                  <span className="text-gray-900">{staple.name}</span>
+                  <span className="text-gray-900 dark:text-white">{staple.name}</span>
                   {staple.is_default && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-300">
                       Default
                     </span>
                   )}
@@ -41,14 +41,14 @@ export default function StaplesList({ staples, onEdit, onDelete }: StaplesListPr
                 <div className="flex space-x-2">
                   <button
                     onClick={() => onEdit(staple)}
-                    className="p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded transition"
+                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded transition"
                     title="Edit staple"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => onDelete(staple.id)}
-                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition"
+                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition"
                     title="Delete staple"
                   >
                     🗑️
