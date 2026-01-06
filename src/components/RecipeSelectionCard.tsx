@@ -12,10 +12,10 @@ export default function RecipeSelectionCard({ recipe, isSelected, onToggle }: Re
   return (
     <div
       onClick={onToggle}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer transition-all ${
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer transition-all duration-200 animate-fade-in ${
         isSelected 
-          ? 'ring-4 ring-primary-500 shadow-lg' 
-          : 'hover:shadow-lg hover:scale-105'
+          ? 'ring-4 ring-primary-500 shadow-lg scale-[1.02]' 
+          : 'hover:shadow-lg hover:scale-[1.02]'
       }`}
     >
       {/* Image */}
