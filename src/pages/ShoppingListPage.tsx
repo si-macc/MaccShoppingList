@@ -1,8 +1,244 @@
+import { useState, useEffect } from 'react'
+import { RecipeWithIngredients, Staple } from '../types'
+import { supabase } from '../lib/supabase'
+import RecipeSelectionCard from '../components/RecipeSelectionCard'
+import StapleSelector from '../components/StapleSelector'
+import ShoppingListGrid from '../components/ShoppingListGrid'
+
+type ViewMode = 'selection' | 'list'
+
 export default function ShoppingListPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>('selection')
+  const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
+  
+  // Data
+  const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
+  const [staples, setStaples] = useState<Staple[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  // Selections
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set())
+  const [selectedStapleIds, setSelectedStapleIds] = useState<Set<string>>(new Set())
+  
+  // Generated list
+  const [shoppingList, setShoppingList] = useState<any>(null)
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    
+    // Fetch recipes with ingredients
+    const { data: recipesData } = await supabase
+      .from('recipes')
+      .select(`
+        *,
+        recipe_ingredients (
+          id,
+          recipe_id,
+          ingredient_id,
+          quantity,
+          unit,
+          ingredient:ingredients (
+            id,
+            name,
+            sector
+          )
+        )
+      `)
+      .order('name')
+
+    // Fetch staples
+    const { data: staplesData } = await supabase
+      .from('staples')
+      .select('*')
+      .order('name')
+
+    if (recipesData) setRecipes(recipesData as RecipeWithIngredients[])
+    if (staplesData) {
+      setStaples(staplesData)
+      // Auto-select default staples
+      const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
+      setSelectedStapleIds(new Set(defaultIds))
+    }
+    
+    setLoading(false)
+  }
+
+  const toggleRecipe = (id: string) => {
+    const newSet = new Set(selectedRecipeIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedRecipeIds(newSet)
+  }
+
+  const toggleStaple = (id: string) => {
+    const newSet = new Set(selectedStapleIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedStapleIds(newSet)
+  }
+
+  const handleGenerateList = async () => {
+    const items: any[] = []
+
+    // Add ingredients from selected recipes
+    const selectedRecipes = recipes.filter(r => selectedRecipeIds.has(r.id))
+    for (const recipe of selectedRecipes) {
+      for (const ri of recipe.recipe_ingredients) {
+        if (ri.ingredient) {
+          items.push({
+            name: ri.ingredient.name,
+            sector: ri.ingredient.sector,
+            quantity: ri.quantity,
+            unit: ri.unit,
+            from_recipe: recipe.name
+          })
+        }
+      }
+    }
+
+    // Add selected staples
+    const selectedStaplesData = staples.filter(s => selectedStapleIds.has(s.id))
+    for (const staple of selectedStaplesData) {
+      items.push({
+        name: staple.name,
+        sector: staple.sector,
+        quantity: null,
+        unit: null,
+        from_staple: true
+      })
+    }
+
+    // Group by sector
+    const grouped = items.reduce((acc, item) => {
+      if (!acc[item.sector]) {
+        acc[item.sector] = []
+      }
+      acc[item.sector].push(item)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    setShoppingList({
+      items,
+      grouped,
+      createdAt: new Date().toISOString()
+    })
+    setViewMode('list')
+  }
+
+  const handleBackToSelection = () => {
+    setViewMode('selection')
+  }
+
+  const handleNewList = () => {
+    setSelectedRecipeIds(new Set())
+    const defaultIds = staples.filter(s => s.is_default).map(s => s.id)
+    setSelectedStapleIds(new Set(defaultIds))
+    setShoppingList(null)
+    setViewMode('selection')
+    setActiveTab('recipes')
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    )
+  }
+
+  if (viewMode === 'list' && shoppingList) {
+    return (
+      <ShoppingListGrid 
+        shoppingList={shoppingList}
+        onBack={handleBackToSelection}
+        onNewList={handleNewList}
+      />
+    )
+  }
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Shopping List</h2>
-      <p className="text-gray-600">Shopping list page - Coming in Phase 4</p>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Create Shopping List</h2>
+        <div className="flex items-center space-x-3">
+          <span className="text-sm text-gray-600">
+            {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
+          </span>
+          <button
+            onClick={handleGenerateList}
+            disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🛒 Generate List
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex space-x-4 border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab('recipes')}
+          className={`pb-3 px-4 font-medium transition ${
+            activeTab === 'recipes'
+              ? 'border-b-2 border-primary-600 text-primary-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Recipes
+        </button>
+        <button
+          onClick={() => setActiveTab('staples')}
+          className={`pb-3 px-4 font-medium transition ${
+            activeTab === 'staples'
+              ? 'border-b-2 border-primary-600 text-primary-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Staples
+        </button>
+      </div>
+
+      {/* Content */}
+      {activeTab === 'recipes' && (
+        <div>
+          {recipes.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500">No recipes yet. Go to Edit page to create some!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {recipes.map((recipe) => (
+                <RecipeSelectionCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  isSelected={selectedRecipeIds.has(recipe.id)}
+                  onToggle={() => toggleRecipe(recipe.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'staples' && (
+        <StapleSelector
+          staples={staples}
+          selectedIds={selectedStapleIds}
+          onToggle={toggleStaple}
+        />
+      )}
     </div>
   )
 }
