@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useOffline } from '../contexts/OfflineContext'
 
 interface LayoutProps {
   children: ReactNode
@@ -8,6 +9,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
+  const { isOnline } = useOffline()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -17,6 +19,13 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="bg-yellow-500 text-yellow-900 px-4 py-2 text-center text-sm font-medium">
+          📡 You are currently offline. Some features may be unavailable.
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

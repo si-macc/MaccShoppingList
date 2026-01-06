@@ -4,7 +4,7 @@ import RecipeEditModal from '../components/RecipeEditModal'
 import StaplesList from '../components/StaplesList'
 import StapleEditModal from '../components/StapleEditModal'
 import BulkUploadModal from '../components/BulkUploadModal'
-import { Recipe, RecipeWithIngredients, Staple } from '../types'
+import { RecipeWithIngredients, Staple } from '../types'
 import { supabase } from '../lib/supabase'
 
 export default function EditPage() {
