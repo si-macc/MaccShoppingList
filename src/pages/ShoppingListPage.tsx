@@ -152,7 +152,7 @@ export default function ShoppingListPage() {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
       </div>
     )
   }
@@ -171,9 +171,9 @@ export default function ShoppingListPage() {
     <div>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Create Shopping List</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Shopping List</h2>
         <div className="flex items-center space-x-3">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-300">
             {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
           </span>
           <button
@@ -187,13 +187,13 @@ export default function ShoppingListPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-4 border-b border-gray-200 mb-6">
+      <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700 mb-6">
         <button
           onClick={() => setActiveTab('recipes')}
           className={`pb-3 px-4 font-medium transition ${
             activeTab === 'recipes'
-              ? 'border-b-2 border-primary-600 text-primary-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-2 border-primary-600 text-primary-600 dark:text-primary-400'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
           Recipes
@@ -202,8 +202,8 @@ export default function ShoppingListPage() {
           onClick={() => setActiveTab('staples')}
           className={`pb-3 px-4 font-medium transition ${
             activeTab === 'staples'
-              ? 'border-b-2 border-primary-600 text-primary-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-2 border-primary-600 text-primary-600 dark:text-primary-400'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
           Staples
@@ -214,8 +214,8 @@ export default function ShoppingListPage() {
       {activeTab === 'recipes' && (
         <div>
           {recipes.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500">No recipes yet. Go to Edit page to create some!</p>
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400">No recipes yet. Go to Edit page to create some!</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

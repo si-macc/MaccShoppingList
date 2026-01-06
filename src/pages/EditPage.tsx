@@ -134,13 +134,13 @@ export default function EditPage() {
     <div>
       {/* Tabs */}
       <div className="flex justify-between items-center mb-6">
-        <div className="flex space-x-4 border-b border-gray-200">
+        <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setActiveTab('recipes')}
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'recipes'
-                ? 'border-b-2 border-primary-600 text-primary-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'border-b-2 border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             Recipes
@@ -149,8 +149,8 @@ export default function EditPage() {
             onClick={() => setActiveTab('staples')}
             className={`pb-3 px-4 font-medium transition ${
               activeTab === 'staples'
-                ? 'border-b-2 border-primary-600 text-primary-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'border-b-2 border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             Staples
@@ -160,7 +160,7 @@ export default function EditPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => setShowBulkUpload(true)}
-            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
+            className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
           >
             📤 Bulk Upload
           </button>
@@ -179,11 +179,11 @@ export default function EditPage() {
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading recipes...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading recipes...</p>
             </div>
           ) : recipes.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500 mb-4">No recipes yet. Create your first recipe!</p>
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No recipes yet. Create your first recipe!</p>
               <button
                 onClick={handleCreateRecipe}
                 className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
@@ -206,11 +206,11 @@ export default function EditPage() {
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading staples...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading staples...</p>
             </div>
           ) : staples.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500 mb-4">No staples yet. Create your first staple!</p>
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No staples yet. Create your first staple!</p>
               <button
                 onClick={handleCreateStaple}
                 className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
