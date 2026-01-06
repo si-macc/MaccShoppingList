@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingList } from '../types'
+import { useLoadedList } from '../contexts/LoadedListContext'
 
 export default function HistoryPage() {
+  const navigate = useNavigate()
+  const { setLoadedList } = useLoadedList()
   const [lists, setLists] = useState<ShoppingList[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingListId, setLoadingListId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchLists()
@@ -44,6 +49,40 @@ export default function HistoryPage() {
 
     if (!error) {
       fetchLists()
+    }
+  }
+
+  const handleLoadList = async (list: ShoppingList) => {
+    setLoadingListId(list.id)
+    try {
+      // Fetch the shopping list items
+      const { data: items, error } = await supabase
+        .from('shopping_list_items')
+        .select('*')
+        .eq('shopping_list_id', list.id)
+        .order('sector')
+
+      if (error) throw error
+
+      // Set the loaded list in context
+      setLoadedList({
+        id: list.id,
+        name: list.name,
+        items: items.map(item => ({
+          name: item.item_name,
+          sector: item.sector,
+          quantity: item.quantity,
+          is_checked: item.is_checked
+        }))
+      })
+
+      // Navigate to shopping list page
+      navigate('/')
+    } catch (error) {
+      console.error('Error loading list:', error)
+      alert('Failed to load shopping list')
+    } finally {
+      setLoadingListId(null)
     }
   }
 
@@ -107,6 +146,14 @@ export default function HistoryPage() {
                 </div>
 
                 <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleLoadList(list)}
+                    disabled={loadingListId === list.id}
+                    className="px-3 py-2 text-sm bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800 transition disabled:opacity-50"
+                    title="Load this list"
+                  >
+                    {loadingListId === list.id ? '⏳ Loading...' : '📋 Load'}
+                  </button>
                   {!list.completed_at && (
                     <button
                       onClick={() => handleMarkComplete(list.id)}

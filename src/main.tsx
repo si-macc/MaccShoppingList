@@ -4,12 +4,15 @@ import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { OfflineProvider } from './contexts/OfflineContext'
+import { LoadedListProvider } from './contexts/LoadedListContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <OfflineProvider>
-        <App />
+        <LoadedListProvider>
+          <App />
+        </LoadedListProvider>
       </OfflineProvider>
     </ThemeProvider>
   </StrictMode>,
