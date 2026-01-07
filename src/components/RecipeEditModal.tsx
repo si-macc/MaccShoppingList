@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RecipeWithIngredients, Ingredient, RecipeIngredient, SupermarketSector } from '../types'
 import { supabase } from '../lib/supabase'
+import { TrashIcon, PencilIcon } from './Icons'
 
 interface RecipeEditModalProps {
   recipe: RecipeWithIngredients
@@ -22,6 +23,11 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const [newIngredientSector, setNewIngredientSector] = useState('')
   const [newIngredientQuantity, setNewIngredientQuantity] = useState('')
   const [newIngredientUnit, setNewIngredientUnit] = useState('')
+
+  // Edit ingredient state
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null)
+  const [editQuantity, setEditQuantity] = useState('')
+  const [editUnit, setEditUnit] = useState('')
 
   useEffect(() => {
     fetchIngredients()
@@ -98,6 +104,29 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
 
   const handleRemoveIngredient = (id: string) => {
     setIngredients(ingredients.filter(i => i.id !== id))
+  }
+
+  const handleStartEditIngredient = (ing: RecipeIngredient) => {
+    setEditingIngredientId(ing.id)
+    setEditQuantity(ing.quantity || '')
+    setEditUnit(ing.unit || '')
+  }
+
+  const handleSaveEditIngredient = (id: string) => {
+    setIngredients(ingredients.map(ing => 
+      ing.id === id 
+        ? { ...ing, quantity: editQuantity || null, unit: editUnit || null }
+        : ing
+    ))
+    setEditingIngredientId(null)
+    setEditQuantity('')
+    setEditUnit('')
+  }
+
+  const handleCancelEditIngredient = () => {
+    setEditingIngredientId(null)
+    setEditQuantity('')
+    setEditUnit('')
   }
 
   const handleSave = async () => {
@@ -243,24 +272,74 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
             {ingredients.length > 0 && (
               <div className="mb-4 space-y-2">
                 {ingredients.map((ing) => (
-                  <div key={ing.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                    <div>
-                      <span className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</span>
-                      {ing.quantity && (
-                        <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          ({ing.quantity}{ing.unit || ''})
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                        • {ing.ingredient?.sector}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveIngredient(ing.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
-                    >
-                      Remove
-                    </button>
+                  <div key={ing.id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                    {editingIngredientId === ing.id ? (
+                      // Edit mode
+                      <div className="space-y-2">
+                        <div className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editQuantity}
+                            onChange={(e) => setEditQuantity(e.target.value)}
+                            placeholder="Quantity (e.g., 2)"
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
+                          />
+                          <input
+                            type="text"
+                            value={editUnit}
+                            onChange={(e) => setEditUnit(e.target.value)}
+                            placeholder="Unit (e.g., cups)"
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={handleCancelEditIngredient}
+                            className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveEditIngredient(ing.id)}
+                            className="px-3 py-1 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // View mode
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</span>
+                          {ing.quantity && (
+                            <span className="text-gray-600 dark:text-gray-400 ml-2">
+                              ({ing.quantity}{ing.unit || ''})
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            • {ing.ingredient?.sector}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleStartEditIngredient(ing)}
+                            className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded transition"
+                            title="Edit ingredient"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRemoveIngredient(ing.id)}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition"
+                            title="Remove ingredient"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
