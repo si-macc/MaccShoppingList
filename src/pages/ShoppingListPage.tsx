@@ -99,7 +99,7 @@ export default function ShoppingListPage() {
       // Extract all unique ingredients
       const allIngredients = new Set<string>()
       recipesData.forEach(recipe => {
-        recipe.recipe_ingredients?.forEach(ri => {
+        recipe.recipe_ingredients?.forEach((ri: any) => {
           if (ri.ingredient?.name) {
             allIngredients.add(ri.ingredient.name)
           }
