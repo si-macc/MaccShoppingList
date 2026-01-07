@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingList } from '../types'
 import { useLoadedList } from '../contexts/LoadedListContext'
-import { ClipboardIcon, CheckIcon, TrashIcon, LoadingIcon } from '../components/Icons'
+import { ShoppingCartIcon, CheckIcon, TrashIcon, LoadingIcon } from '../components/Icons'
 
 export default function HistoryPage() {
   const navigate = useNavigate()
@@ -156,7 +156,7 @@ export default function HistoryPage() {
                   {loadingListId === list.id ? (
                     <LoadingIcon className="w-5 h-5" />
                   ) : (
-                    <ClipboardIcon className="w-5 h-5" />
+                    <ShoppingCartIcon className="w-5 h-5" />
                   )}
                 </button>
                 {!list.completed_at && (

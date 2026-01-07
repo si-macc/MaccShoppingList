@@ -5,15 +5,17 @@ import { PlusIcon, TrashIcon, PencilIcon, CheckIcon } from './Icons'
 
 interface SectorManagerProps {
   onClose: () => void
+  onSectorsChanged?: () => void
 }
 
-export default function SectorManager({ onClose }: SectorManagerProps) {
+export default function SectorManager({ onClose, onSectorsChanged }: SectorManagerProps) {
   const [sectors, setSectors] = useState<SupermarketSector[]>([])
   const [loading, setLoading] = useState(true)
   const [newSectorName, setNewSectorName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
 
   useEffect(() => {
     fetchSectors()
@@ -49,6 +51,7 @@ export default function SectorManager({ onClose }: SectorManagerProps) {
 
     if (!error) {
       setNewSectorName('')
+      setHasChanges(true)
       fetchSectors()
     } else {
       alert('Failed to add sector')
@@ -59,19 +62,84 @@ export default function SectorManager({ onClose }: SectorManagerProps) {
   const handleUpdateSector = async (id: string) => {
     if (!editingName.trim()) return
 
-    setSaving(true)
-    const { error } = await supabase
-      .from('supermarket_sectors')
-      .update({ name: editingName.trim() })
-      .eq('id', id)
+    const sector = sectors.find(s => s.id === id)
+    if (!sector) return
 
-    if (!error) {
+    const oldName = sector.name
+    const newName = editingName.trim()
+
+    if (oldName === newName) {
       setEditingId(null)
       setEditingName('')
-      fetchSectors()
-    } else {
-      alert('Failed to update sector')
+      return
     }
+
+    setSaving(true)
+    console.log('=== SECTOR UPDATE DEBUG ===')
+    console.log('Old name:', JSON.stringify(oldName))
+    console.log('New name:', JSON.stringify(newName))
+
+    // First, let's see what staples exist with the old sector name
+    const { data: existingStaples } = await supabase
+      .from('staples')
+      .select('id, name, sector')
+    console.log('All staples before update:', JSON.stringify(existingStaples, null, 2))
+    console.log('Looking for sector:', JSON.stringify(oldName))
+    console.log('Staples matching old sector:', existingStaples?.filter(s => s.sector === oldName))
+
+    // Update the sector name
+    const { data: sectorData, error: sectorError } = await supabase
+      .from('supermarket_sectors')
+      .update({ name: newName })
+      .eq('id', id)
+      .select()
+
+    console.log('Sector update result:', { sectorData, sectorError })
+
+    if (sectorError) {
+      alert('Failed to update sector: ' + sectorError.message)
+      setSaving(false)
+      return
+    }
+
+    // Update all ingredients with the old sector name
+    const { data: ingredientData, error: ingredientError, count: ingredientCount } = await supabase
+      .from('ingredients')
+      .update({ sector: newName })
+      .eq('sector', oldName)
+      .select()
+
+    console.log('Ingredients update:', { count: ingredientData?.length, ingredientError })
+
+    // Update all staples with the old sector name
+    const { data: stapleData, error: stapleError } = await supabase
+      .from('staples')
+      .update({ sector: newName })
+      .eq('sector', oldName)
+      .select()
+
+    console.log('Staples update:', { updatedCount: stapleData?.length, stapleData, stapleError })
+
+    // Verify staples after update
+    const { data: staplesAfter } = await supabase
+      .from('staples')
+      .select('id, name, sector')
+    console.log('All staples AFTER update:', staplesAfter)
+
+    // Update all shopping list items with the old sector name
+    const { data: shoppingData, error: shoppingListError } = await supabase
+      .from('shopping_list_items')
+      .update({ sector: newName })
+      .eq('sector', oldName)
+      .select()
+
+    console.log('Shopping list items update:', { count: shoppingData?.length, shoppingListError })
+    console.log('=== END DEBUG ===')
+
+    setEditingId(null)
+    setEditingName('')
+    setHasChanges(true)
+    fetchSectors()
     setSaving(false)
   }
 
@@ -84,10 +152,18 @@ export default function SectorManager({ onClose }: SectorManagerProps) {
       .eq('id', id)
 
     if (!error) {
+      setHasChanges(true)
       fetchSectors()
     } else {
       alert('Failed to delete sector')
     }
+  }
+
+  const handleClose = () => {
+    if (hasChanges && onSectorsChanged) {
+      onSectorsChanged()
+    }
+    onClose()
   }
 
   const startEditing = (sector: SupermarketSector) => {
@@ -104,7 +180,7 @@ export default function SectorManager({ onClose }: SectorManagerProps) {
             Manage Sectors
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
           >
             ×
@@ -197,7 +273,7 @@ export default function SectorManager({ onClose }: SectorManagerProps) {
         {/* Footer */}
         <div className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
           >
             Done

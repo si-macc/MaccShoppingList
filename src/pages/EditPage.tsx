@@ -13,6 +13,7 @@ export default function EditPage() {
   const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
   const [staples, setStaples] = useState<Staple[]>([])
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [editingRecipe, setEditingRecipe] = useState<RecipeWithIngredients | null>(null)
   const [editingStaple, setEditingStaple] = useState<Staple | null>(null)
@@ -65,8 +66,22 @@ export default function EditPage() {
       .order('name')
 
     if (!error && data) {
+      console.log('📦 Fetched Staples:', data)
+      console.log('📦 Staple sectors:', Array.from(new Set(data.map(s => s.sector))))
       setStaples(data)
     }
+
+    // Fetch sectors
+    const { data: sectorsData } = await supabase
+      .from('supermarket_sectors')
+      .select('id, name')
+      .order('name')
+
+    if (sectorsData) {
+      console.log('🏪 Fetched Sectors from DB:', sectorsData)
+      setSectors(sectorsData)
+    }
+
     setLoading(false)
   }
 
@@ -235,6 +250,7 @@ export default function EditPage() {
           ) : (
             <StaplesList
               staples={staples}
+              sectors={sectors}
               onEdit={setEditingStaple}
               onDelete={handleDeleteStaple}
             />
@@ -274,7 +290,14 @@ export default function EditPage() {
       )}
 
       {showSectorManager && (
-        <SectorManager onClose={() => setShowSectorManager(false)} />
+        <SectorManager 
+          onClose={() => setShowSectorManager(false)} 
+          onSectorsChanged={() => {
+            // Refresh ALL data to reflect sector name changes
+            fetchRecipes()
+            fetchStaples()
+          }}
+        />
       )}
     </div>
   )
