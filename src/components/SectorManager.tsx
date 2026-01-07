@@ -16,6 +16,7 @@ export default function SectorManager({ onClose, onSectorsChanged }: SectorManag
   const [editingName, setEditingName] = useState('')
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSectors()
@@ -159,6 +160,66 @@ export default function SectorManager({ onClose, onSectorsChanged }: SectorManag
     }
   }
 
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggingId(id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDragEnd = () => {
+    setDraggingId(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!draggingId || draggingId === targetId) {
+      setDraggingId(null)
+      return
+    }
+
+    const dragIndex = sectors.findIndex(s => s.id === draggingId)
+    const targetIndex = sectors.findIndex(s => s.id === targetId)
+
+    if (dragIndex === -1 || targetIndex === -1) return
+
+    // Reorder sectors array
+    const newSectors = [...sectors]
+    const [removed] = newSectors.splice(dragIndex, 1)
+    newSectors.splice(targetIndex, 0, removed)
+
+    // Update display_order for all sectors
+    setSaving(true)
+    const updates = newSectors.map((sector, index) => ({
+      id: sector.id,
+      display_order: index + 1,
+      grid_row: Math.floor(index / 3) + 1,
+      grid_column: (index % 3) + 1
+    }))
+
+    // Update all sectors in database
+    for (const update of updates) {
+      await supabase
+        .from('supermarket_sectors')
+        .update({
+          display_order: update.display_order,
+          grid_row: update.grid_row,
+          grid_column: update.grid_column
+        })
+        .eq('id', update.id)
+    }
+
+    setHasChanges(true)
+    setSaving(false)
+    setDraggingId(null)
+    fetchSectors()
+  }
+
   const handleClose = () => {
     if (hasChanges && onSectorsChanged) {
       onSectorsChanged()
@@ -198,7 +259,16 @@ export default function SectorManager({ onClose, onSectorsChanged }: SectorManag
               {sectors.map((sector) => (
                 <div
                   key={sector.id}
-                  className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-3"
+                  draggable={editingId !== sector.id}
+                  onDragStart={(e) => handleDragStart(e, sector.id)}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handleDragEnd}
+                  onDrop={(e) => handleDrop(e, sector.id)}
+                  className={`flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg px-4 py-3 transition ${
+                    draggingId === sector.id ? 'opacity-50' : ''
+                  } ${
+                    editingId !== sector.id ? 'cursor-move hover:bg-gray-100 dark:hover:bg-gray-600' : ''
+                  }`}
                 >
                   {editingId === sector.id ? (
                     <input
@@ -210,7 +280,12 @@ export default function SectorManager({ onClose, onSectorsChanged }: SectorManag
                       onKeyDown={(e) => e.key === 'Enter' && handleUpdateSector(sector.id)}
                     />
                   ) : (
-                    <span className="text-gray-900 dark:text-white">{sector.name}</span>
+                    <div className="flex items-center space-x-2 flex-1">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                      </svg>
+                      <span className="text-gray-900 dark:text-white">{sector.name}</span>
+                    </div>
                   )}
                   
                   <div className="flex space-x-1">
