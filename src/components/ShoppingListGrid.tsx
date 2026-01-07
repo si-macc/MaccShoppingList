@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { SupermarketSector } from '../types'
+import { SaveIcon, ShareIcon, ArrowLeftIcon, PlusIcon } from './Icons'
 
 interface ShoppingListGridProps {
   shoppingList: any
@@ -155,54 +156,37 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
         </p>
         
         {/* Action Buttons */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="flex justify-evenly items-center">
           <button
             onClick={onBack}
-            className="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition group"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Back to selection"
           >
-            <div className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg mb-2 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Back</span>
+            <ArrowLeftIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
           
           <button
             onClick={() => setShowShareModal(true)}
-            className="flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-xl transition group"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Share list"
           >
-            <div className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg mb-2 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            </div>
-            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Share</span>
+            <ShareIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </button>
           
           <button
             onClick={() => setShowSaveModal(true)}
-            className="flex flex-col items-center justify-center p-4 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-xl transition group"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Save list"
           >
-            <div className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg mb-2 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-            </div>
-            <span className="text-sm font-medium text-green-600 dark:text-green-400">Save List</span>
+            <SaveIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
           </button>
           
           <button
             onClick={onNewList}
-            className="flex flex-col items-center justify-center p-4 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-500 rounded-xl transition group relative"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Create new list"
           >
-            <span className="absolute top-2 right-2 px-2 py-0.5 bg-primary-500 text-white text-[10px] font-bold rounded-full uppercase">New</span>
-            <div className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg mb-2 group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <span className="text-sm font-medium text-white">New List</span>
+            <PlusIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
         </div>
       </div>
