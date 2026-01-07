@@ -4,19 +4,23 @@ import RecipeEditModal from '../components/RecipeEditModal'
 import StaplesList from '../components/StaplesList'
 import StapleEditModal from '../components/StapleEditModal'
 import BulkUploadModal from '../components/BulkUploadModal'
+import SectorManager from '../components/SectorManager'
 import { RecipeWithIngredients, Staple } from '../types'
 import { supabase } from '../lib/supabase'
+import { PlusIcon, UploadIcon, CogIcon } from '../components/Icons'
 
 export default function EditPage() {
   const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
   const [staples, setStaples] = useState<Staple[]>([])
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [editingRecipe, setEditingRecipe] = useState<RecipeWithIngredients | null>(null)
   const [editingStaple, setEditingStaple] = useState<Staple | null>(null)
   const [isCreatingRecipe, setIsCreatingRecipe] = useState(false)
   const [isCreatingStaple, setIsCreatingStaple] = useState(false)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [showSectorManager, setShowSectorManager] = useState(false)
 
   useEffect(() => {
     if (activeTab === 'recipes') {
@@ -62,8 +66,22 @@ export default function EditPage() {
       .order('name')
 
     if (!error && data) {
+      console.log('📦 Fetched Staples:', data)
+      console.log('📦 Staple sectors:', Array.from(new Set(data.map(s => s.sector))))
       setStaples(data)
     }
+
+    // Fetch sectors
+    const { data: sectorsData } = await supabase
+      .from('supermarket_sectors')
+      .select('id, name')
+      .order('name')
+
+    if (sectorsData) {
+      console.log('🏪 Fetched Sectors from DB:', sectorsData)
+      setSectors(sectorsData)
+    }
+
     setLoading(false)
   }
 
@@ -133,7 +151,7 @@ export default function EditPage() {
   return (
     <div>
       {/* Tabs */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col space-y-4 mb-6">
         <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setActiveTab('recipes')}
@@ -157,18 +175,27 @@ export default function EditPage() {
           </button>
         </div>
 
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowSectorManager(true)}
+            className="flex items-center space-x-2 px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
+          >
+            <CogIcon className="w-4 h-4" />
+            <span>Sectors</span>
+          </button>
           <button
             onClick={() => setShowBulkUpload(true)}
-            className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
+            className="flex items-center space-x-2 px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
           >
-            📤 Bulk Upload
+            <UploadIcon className="w-4 h-4" />
+            <span>Bulk Upload</span>
           </button>
           <button
             onClick={activeTab === 'recipes' ? handleCreateRecipe : handleCreateStaple}
-            className="px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+            className="flex items-center space-x-2 px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
           >
-            ➕ Add {activeTab === 'recipes' ? 'Recipe' : 'Staple'}
+            <PlusIcon className="w-4 h-4" />
+            <span>Add {activeTab === 'recipes' ? 'Recipe' : 'Staple'}</span>
           </button>
         </div>
       </div>
@@ -186,9 +213,10 @@ export default function EditPage() {
               <p className="text-gray-500 dark:text-gray-400 mb-4">No recipes yet. Create your first recipe!</p>
               <button
                 onClick={handleCreateRecipe}
-                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
               >
-                ➕ Add Your First Recipe
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Recipe</span>
               </button>
             </div>
           ) : (
@@ -213,14 +241,16 @@ export default function EditPage() {
               <p className="text-gray-500 dark:text-gray-400 mb-4">No staples yet. Create your first staple!</p>
               <button
                 onClick={handleCreateStaple}
-                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
               >
-                ➕ Add Your First Staple
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Staple</span>
               </button>
             </div>
           ) : (
             <StaplesList
               staples={staples}
+              sectors={sectors}
               onEdit={setEditingStaple}
               onDelete={handleDeleteStaple}
             />
@@ -255,6 +285,17 @@ export default function EditPage() {
             } else {
               fetchStaples()
             }
+          }}
+        />
+      )}
+
+      {showSectorManager && (
+        <SectorManager 
+          onClose={() => setShowSectorManager(false)} 
+          onSectorsChanged={() => {
+            // Refresh ALL data to reflect sector name changes
+            fetchRecipes()
+            fetchStaples()
           }}
         />
       )}

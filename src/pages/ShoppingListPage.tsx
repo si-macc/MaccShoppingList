@@ -5,6 +5,7 @@ import RecipeSelectionCard from '../components/RecipeSelectionCard'
 import StapleSelector from '../components/StapleSelector'
 import ShoppingListGrid from '../components/ShoppingListGrid'
 import { useLoadedList } from '../contexts/LoadedListContext'
+import { ShoppingCartIcon } from '../components/Icons'
 
 type ViewMode = 'selection' | 'list'
 
@@ -243,18 +244,19 @@ export default function ShoppingListPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col space-y-4 mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Shopping List</h2>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-gray-600 dark:text-gray-300">
             {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
           </span>
           <button
             onClick={handleGenerateList}
             disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
-            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            🛒 Generate List
+            <ShoppingCartIcon className="w-5 h-5" />
+            <span>Generate List</span>
           </button>
         </div>
       </div>

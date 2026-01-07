@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { SupermarketSector } from '../types'
 
 interface ShoppingListGridProps {
   shoppingList: any
@@ -7,20 +8,42 @@ interface ShoppingListGridProps {
   onNewList: () => void
 }
 
-// Define the 2x3 grid layout matching supermarket sectors
-const SECTOR_LAYOUT = [
-  // Row 1
-  ['Fresh Produce', 'Meat & Seafood', 'Dairy & Eggs'],
-  // Row 2
-  ['Bakery & Bread', 'Pantry & Canned Goods', 'Frozen Foods']
-]
-
 export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: ShoppingListGridProps) {
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [listName, setListName] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [sectors, setSectors] = useState<SupermarketSector[]>([])
+
+  useEffect(() => {
+    fetchSectors()
+  }, [])
+
+  const fetchSectors = async () => {
+    const { data, error } = await supabase
+      .from('supermarket_sectors')
+      .select('*')
+      .order('display_order')
+
+    if (!error && data) {
+      setSectors(data)
+    }
+  }
+
+  // Build sector layout from database (2 rows, 3 columns based on grid_row/grid_column)
+  const getSectorLayout = (): string[][] => {
+    if (sectors.length === 0) return []
+    
+    const layout: string[][] = []
+    sectors.forEach(sector => {
+      const rowIndex = sector.grid_row - 1
+      const colIndex = sector.grid_column - 1
+      if (!layout[rowIndex]) layout[rowIndex] = []
+      layout[rowIndex][colIndex] = sector.name
+    })
+    return layout.filter(row => row && row.length > 0)
+  }
 
   const toggleItem = (index: number) => {
     const newSet = new Set(checkedItems)
@@ -96,9 +119,11 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
 
   const generateListText = () => {
     let text = `🛒 Shopping List${listName ? ` - ${listName}` : ''}\n\n`
+    const sectorLayout = getSectorLayout()
     
-    for (const row of SECTOR_LAYOUT) {
+    for (const row of sectorLayout) {
       for (const sector of row) {
+        if (!sector) continue
         const items = shoppingList.grouped[sector] || []
         if (items.length > 0) {
           text += `📍 ${sector}\n`
@@ -184,9 +209,10 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
 
       {/* 2x3 Grid Layout */}
       <div className="space-y-4">
-        {SECTOR_LAYOUT.map((row, rowIndex) => (
+        {getSectorLayout().map((row, rowIndex) => (
           <div key={rowIndex} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {row.map((sector) => {
+              if (!sector) return null
               const items = shoppingList.grouped[sector] || []
               
               return (
