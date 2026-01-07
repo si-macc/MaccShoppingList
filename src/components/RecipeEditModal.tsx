@@ -28,6 +28,7 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null)
   const [editQuantity, setEditQuantity] = useState('')
   const [editUnit, setEditUnit] = useState('')
+  const [editSector, setEditSector] = useState('')
 
   useEffect(() => {
     fetchIngredients()
@@ -110,23 +111,40 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
     setEditingIngredientId(ing.id)
     setEditQuantity(ing.quantity || '')
     setEditUnit(ing.unit || '')
+    setEditSector(ing.ingredient?.sector || '')
   }
 
-  const handleSaveEditIngredient = (id: string) => {
+  const handleSaveEditIngredient = async (id: string) => {
+    const ingredient = ingredients.find(ing => ing.id === id)
+    if (ingredient?.ingredient_id && editSector !== ingredient.ingredient?.sector) {
+      // Update the ingredient's sector in the database
+      await supabase
+        .from('ingredients')
+        .update({ sector: editSector })
+        .eq('id', ingredient.ingredient_id)
+    }
+
     setIngredients(ingredients.map(ing => 
       ing.id === id 
-        ? { ...ing, quantity: editQuantity || null, unit: editUnit || null }
+        ? { 
+            ...ing, 
+            quantity: editQuantity || null, 
+            unit: editUnit || null,
+            ingredient: ing.ingredient ? { ...ing.ingredient, sector: editSector } : undefined
+          }
         : ing
     ))
     setEditingIngredientId(null)
     setEditQuantity('')
     setEditUnit('')
+    setEditSector('')
   }
 
   const handleCancelEditIngredient = () => {
     setEditingIngredientId(null)
     setEditQuantity('')
     setEditUnit('')
+    setEditSector('')
   }
 
   const handleSave = async () => {
@@ -277,22 +295,31 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                       // Edit mode
                       <div className="space-y-2">
                         <div className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</div>
-                        <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <input
                             type="text"
                             value={editQuantity}
                             onChange={(e) => setEditQuantity(e.target.value)}
                             placeholder="Quantity (e.g., 2)"
-                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
+                            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
                           />
                           <input
                             type="text"
                             value={editUnit}
                             onChange={(e) => setEditUnit(e.target.value)}
                             placeholder="Unit (e.g., cups)"
-                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
+                            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
                           />
                         </div>
+                        <select
+                          value={editSector}
+                          onChange={(e) => setEditSector(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500"
+                        >
+                          {sectors.map(sector => (
+                            <option key={sector.id} value={sector.name}>{sector.name}</option>
+                          ))}
+                        </select>
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={handleCancelEditIngredient}
