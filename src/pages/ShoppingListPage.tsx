@@ -22,6 +22,10 @@ export default function ShoppingListPage() {
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set())
   const [selectedStapleIds, setSelectedStapleIds] = useState<Set<string>>(new Set())
   
+  // Ingredient filters
+  const [selectedIngredientFilters, setSelectedIngredientFilters] = useState<Set<string>>(new Set())
+  const [availableIngredients, setAvailableIngredients] = useState<string[]>([])
+  
   // Generated list
   const [shoppingList, setShoppingList] = useState<any>(null)
 
@@ -88,7 +92,19 @@ export default function ShoppingListPage() {
       .select('*')
       .order('name')
 
-    if (recipesData) setRecipes(recipesData as RecipeWithIngredients[])
+    if (recipesData) {
+      setRecipes(recipesData as RecipeWithIngredients[])
+      // Extract all unique ingredients
+      const allIngredients = new Set<string>()
+      recipesData.forEach(recipe => {
+        recipe.recipe_ingredients?.forEach(ri => {
+          if (ri.ingredient?.name) {
+            allIngredients.add(ri.ingredient.name)
+          }
+        })
+      })
+      setAvailableIngredients(Array.from(allIngredients).sort())
+    }
     if (staplesData) {
       setStaples(staplesData)
       // Auto-select default staples
@@ -98,6 +114,31 @@ export default function ShoppingListPage() {
     
     setLoading(false)
   }
+
+  const toggleIngredientFilter = (ingredientName: string) => {
+    const newSet = new Set(selectedIngredientFilters)
+    if (newSet.has(ingredientName)) {
+      newSet.delete(ingredientName)
+    } else {
+      newSet.add(ingredientName)
+    }
+    setSelectedIngredientFilters(newSet)
+  }
+
+  const clearIngredientFilters = () => {
+    setSelectedIngredientFilters(new Set())
+  }
+
+  // Filter recipes based on selected ingredients
+  const filteredRecipes = selectedIngredientFilters.size === 0 
+    ? recipes
+    : recipes.filter(recipe => {
+        const recipeIngredients = recipe.recipe_ingredients?.map(ri => ri.ingredient?.name).filter(Boolean) || []
+        // Recipe must contain ALL selected ingredients
+        return Array.from(selectedIngredientFilters).every(filter => 
+          recipeIngredients.includes(filter)
+        )
+      })
 
   const toggleRecipe = (id: string) => {
     const newSet = new Set(selectedRecipeIds)
@@ -245,13 +286,56 @@ export default function ShoppingListPage() {
       {/* Content */}
       {activeTab === 'recipes' && (
         <div>
+          {/* Ingredient Filters */}
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 dark:text-white">Filter by Ingredients</h3>
+              {selectedIngredientFilters.size > 0 && (
+                <button
+                  onClick={clearIngredientFilters}
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Clear filters ({selectedIngredientFilters.size})
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {availableIngredients.map(ingredient => {
+                const isSelected = selectedIngredientFilters.has(ingredient)
+                return (
+                  <button
+                    key={ingredient}
+                    onClick={() => toggleIngredientFilter(ingredient)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                      isSelected
+                        ? 'bg-primary-600 text-white hover:bg-primary-700'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {ingredient}
+                  </button>
+                )
+              })}
+            </div>
+            {selectedIngredientFilters.size > 0 && (
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                Showing recipes with all selected ingredients ({filteredRecipes.length} of {recipes.length})
+              </p>
+            )}
+          </div>
+
+          {/* Recipe Grid */}
           {recipes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
               <p className="text-gray-500 dark:text-gray-400">No recipes yet. Go to Edit page to create some!</p>
             </div>
+          ) : filteredRecipes.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400">No recipes match the selected ingredients</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {recipes.map((recipe) => (
+              {filteredRecipes.map((recipe) => (
                 <RecipeSelectionCard
                   key={recipe.id}
                   recipe={recipe}
