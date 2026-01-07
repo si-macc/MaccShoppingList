@@ -103,7 +103,7 @@ export default function SectorManager({ onClose, onSectorsChanged }: SectorManag
     }
 
     // Update all ingredients with the old sector name
-    const { data: ingredientData, error: ingredientError, count: ingredientCount } = await supabase
+    const { data: ingredientData, error: ingredientError } = await supabase
       .from('ingredients')
       .update({ sector: newName })
       .eq('sector', oldName)
