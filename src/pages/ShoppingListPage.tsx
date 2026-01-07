@@ -26,6 +26,7 @@ export default function ShoppingListPage() {
   // Ingredient filters
   const [selectedIngredientFilters, setSelectedIngredientFilters] = useState<Set<string>>(new Set())
   const [availableIngredients, setAvailableIngredients] = useState<string[]>([])
+  const [ingredientDropdownOpen, setIngredientDropdownOpen] = useState(false)
   
   // Generated list
   const [shoppingList, setShoppingList] = useState<any>(null)
@@ -297,28 +298,79 @@ export default function ShoppingListPage() {
                   onClick={clearIngredientFilters}
                   className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
                 >
-                  Clear filters ({selectedIngredientFilters.size})
+                  Clear all ({selectedIngredientFilters.size})
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {availableIngredients.map(ingredient => {
-                const isSelected = selectedIngredientFilters.has(ingredient)
-                return (
-                  <button
-                    key={ingredient}
-                    onClick={() => toggleIngredientFilter(ingredient)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                      isSelected
-                        ? 'bg-primary-600 text-white hover:bg-primary-700'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {ingredient}
-                  </button>
-                )
-              })}
+            
+            {/* Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIngredientDropdownOpen(!ingredientDropdownOpen)}
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-left flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+              >
+                <span className="text-gray-700 dark:text-gray-300">
+                  {selectedIngredientFilters.size === 0 
+                    ? 'Select ingredients...' 
+                    : `${selectedIngredientFilters.size} ingredient${selectedIngredientFilters.size > 1 ? 's' : ''} selected`
+                  }
+                </span>
+                <svg className={`w-5 h-5 text-gray-400 transition-transform ${ingredientDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {ingredientDropdownOpen && (
+                <div className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  {availableIngredients.map(ingredient => {
+                    const isSelected = selectedIngredientFilters.has(ingredient)
+                    return (
+                      <button
+                        key={ingredient}
+                        onClick={() => toggleIngredientFilter(ingredient)}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center space-x-3"
+                      >
+                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center ${
+                          isSelected 
+                            ? 'bg-primary-600 border-primary-600' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-gray-900 dark:text-white">{ingredient}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
+            
+            {/* Selected Chips */}
+            {selectedIngredientFilters.size > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Array.from(selectedIngredientFilters).map(ingredient => (
+                  <span
+                    key={ingredient}
+                    className="inline-flex items-center space-x-1 px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm"
+                  >
+                    <span>{ingredient}</span>
+                    <button
+                      onClick={() => toggleIngredientFilter(ingredient)}
+                      className="hover:text-primary-900 dark:hover:text-primary-100"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
             {selectedIngredientFilters.size > 0 && (
               <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
                 Showing recipes with all selected ingredients ({filteredRecipes.length} of {recipes.length})
