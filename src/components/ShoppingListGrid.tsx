@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { SupermarketSector } from '../types'
+import { SaveIcon, ShareIcon, ArrowLeftIcon, PlusIcon } from './Icons'
 
 interface ShoppingListGridProps {
   shoppingList: any
@@ -148,37 +149,44 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Shopping List</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {checkedCount} of {totalItems} items checked
-          </p>
-        </div>
-        <div className="flex space-x-2">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Shopping List</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          {checkedCount} of {totalItems} items checked
+        </p>
+        
+        {/* Action Buttons */}
+        <div className="flex justify-evenly items-center">
           <button
             onClick={onBack}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Back to selection"
           >
-            ← Back
+            <ArrowLeftIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
+          
           <button
             onClick={() => setShowShareModal(true)}
-            className="px-4 py-2 border border-primary-600 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 transition"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Share list"
           >
-            📤 Share
+            <ShareIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </button>
+          
           <button
             onClick={() => setShowSaveModal(true)}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Save list"
           >
-            💾 Save List
+            <SaveIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
           </button>
+          
           <button
             onClick={onNewList}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition"
+            className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
+            title="Create new list"
           >
-            🆕 New List
+            <PlusIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
         </div>
       </div>

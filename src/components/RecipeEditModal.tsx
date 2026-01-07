@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RecipeWithIngredients, Ingredient, RecipeIngredient, SupermarketSector } from '../types'
 import { supabase } from '../lib/supabase'
+import { TrashIcon, PencilIcon } from './Icons'
 
 interface RecipeEditModalProps {
   recipe: RecipeWithIngredients
@@ -16,12 +17,19 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([])
   const [sectors, setSectors] = useState<SupermarketSector[]>([])
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   // New ingredient form
   const [newIngredientName, setNewIngredientName] = useState('')
   const [newIngredientSector, setNewIngredientSector] = useState('')
   const [newIngredientQuantity, setNewIngredientQuantity] = useState('')
   const [newIngredientUnit, setNewIngredientUnit] = useState('')
+
+  // Edit ingredient state
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null)
+  const [editQuantity, setEditQuantity] = useState('')
+  const [editUnit, setEditUnit] = useState('')
+  const [editSector, setEditSector] = useState('')
 
   useEffect(() => {
     fetchIngredients()
@@ -98,6 +106,125 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
 
   const handleRemoveIngredient = (id: string) => {
     setIngredients(ingredients.filter(i => i.id !== id))
+  }
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB')
+      return
+    }
+
+    setUploading(true)
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+      const filePath = `${fileName}` // Upload to bucket root, not in subfolder
+
+      console.log('Uploading to path:', filePath)
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('recipe-photos')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        if (uploadError.message.includes('Bucket not found')) {
+          alert('Storage bucket not found. Please create a public bucket named "recipe-photos" in your Supabase project:\n\n1. Go to Supabase Dashboard → Storage\n2. Click "New bucket"\n3. Name it "recipe-photos"\n4. Make it Public\n5. Click "Create bucket"')
+        } else if (uploadError.message.includes('row-level security') || uploadError.message.includes('policy')) {
+          alert('Storage permissions not configured. Please add storage policies in Supabase:\n\n1. Go to Storage → recipe-photos → Policies\n2. Add INSERT policy for authenticated users\n3. Add SELECT policy for public access\n\nOr run this SQL:\n\nCREATE POLICY "Allow authenticated uploads"\nON storage.objects FOR INSERT TO authenticated\nWITH CHECK (bucket_id = \'recipe-photos\');\n\nCREATE POLICY "Allow public reads"\nON storage.objects FOR SELECT\nUSING (bucket_id = \'recipe-photos\');')
+        } else {
+          alert(`Failed to upload image: ${uploadError.message}`)
+        }
+        throw uploadError
+      }
+
+      console.log('Upload successful:', uploadData)
+
+      // Try to get public URL first
+      const { data: urlData } = supabase.storage
+        .from('recipe-photos')
+        .getPublicUrl(uploadData.path)
+
+      console.log('Public URL:', urlData.publicUrl)
+      
+      // Verify the URL works by testing it
+      try {
+        const testResponse = await fetch(urlData.publicUrl, { method: 'HEAD' })
+        if (testResponse.ok) {
+          setImageUrl(urlData.publicUrl)
+        } else {
+          // If public URL doesn't work, try signed URL (for private buckets)
+          console.log('Public URL failed, trying signed URL')
+          const { data: signedData, error: signedError } = await supabase.storage
+            .from('recipe-photos')
+            .createSignedUrl(uploadData.path, 60 * 60 * 24 * 365) // 1 year
+          
+          if (signedError) throw signedError
+          if (signedData) {
+            setImageUrl(signedData.signedUrl)
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying URL:', error)
+        setImageUrl(urlData.publicUrl) // Try it anyway
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleStartEditIngredient = (ing: RecipeIngredient) => {
+    setEditingIngredientId(ing.id)
+    setEditQuantity(ing.quantity || '')
+    setEditUnit(ing.unit || '')
+    setEditSector(ing.ingredient?.sector || '')
+  }
+
+  const handleSaveEditIngredient = async (id: string) => {
+    const ingredient = ingredients.find(ing => ing.id === id)
+    if (ingredient?.ingredient_id && editSector !== ingredient.ingredient?.sector) {
+      // Update the ingredient's sector in the database
+      await supabase
+        .from('ingredients')
+        .update({ sector: editSector })
+        .eq('id', ingredient.ingredient_id)
+    }
+
+    setIngredients(ingredients.map(ing => 
+      ing.id === id 
+        ? { 
+            ...ing, 
+            quantity: editQuantity || null, 
+            unit: editUnit || null,
+            ingredient: ing.ingredient ? { ...ing.ingredient, sector: editSector } : undefined
+          }
+        : ing
+    ))
+    setEditingIngredientId(null)
+    setEditQuantity('')
+    setEditUnit('')
+    setEditSector('')
+  }
+
+  const handleCancelEditIngredient = () => {
+    setEditingIngredientId(null)
+    setEditQuantity('')
+    setEditUnit('')
+    setEditSector('')
   }
 
   const handleSave = async () => {
@@ -205,17 +332,75 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
           {/* Image URL */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Image URL (optional)
+              Recipe Image (optional)
             </label>
+            
+            {/* Image Preview */}
+            {imageUrl && (
+              <div className="mb-3 relative w-full h-48 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+                <img
+                  src={imageUrl}
+                  alt="Recipe preview"
+                  className="w-full h-full object-cover"
+                  onLoad={() => console.log('Image loaded successfully:', imageUrl)}
+                  onError={(e) => {
+                    console.error('Failed to load image:', imageUrl)
+                    console.error('Check if file exists at:', imageUrl)
+                    // Try to fetch and see the actual error
+                    fetch(imageUrl).then(r => console.log('Fetch response:', r.status, r.statusText)).catch(err => console.error('Fetch error:', err))
+                    e.currentTarget.src = 'https://placehold.co/400x300/22c55e/ffffff?text=Image+Load+Error'
+                  }}
+                />
+                <button
+                  onClick={() => setImageUrl('')}
+                  className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
+                  title="Remove image"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              {/* Upload Button */}
+              <label className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+                <div className="px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition cursor-pointer text-center">
+                  {uploading ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Uploading...
+                    </span>
+                  ) : (
+                    <span>📷 Upload Photo</span>
+                  )}
+                </div>
+              </label>
+
+              {/* OR separator and URL input */}
+              <span className="flex items-center text-gray-500 dark:text-gray-400 text-sm">or</span>
+            </div>
+
             <input
               type="url"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
-              placeholder="https://example.com/image.jpg"
+              className="mt-2 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
+              placeholder="Or paste image URL"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Leave empty to use placeholder image
+              Upload a photo or provide an image URL. Max 5MB.
             </p>
           </div>
 
@@ -243,24 +428,83 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
             {ingredients.length > 0 && (
               <div className="mb-4 space-y-2">
                 {ingredients.map((ing) => (
-                  <div key={ing.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                    <div>
-                      <span className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</span>
-                      {ing.quantity && (
-                        <span className="text-gray-600 dark:text-gray-400 ml-2">
-                          ({ing.quantity}{ing.unit || ''})
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                        • {ing.ingredient?.sector}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveIngredient(ing.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
-                    >
-                      Remove
-                    </button>
+                  <div key={ing.id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                    {editingIngredientId === ing.id ? (
+                      // Edit mode
+                      <div className="space-y-2">
+                        <div className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={editQuantity}
+                            onChange={(e) => setEditQuantity(e.target.value)}
+                            placeholder="Quantity (e.g., 2)"
+                            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
+                          />
+                          <input
+                            type="text"
+                            value={editUnit}
+                            onChange={(e) => setEditUnit(e.target.value)}
+                            placeholder="Unit (e.g., cups)"
+                            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500 placeholder-gray-400 dark:placeholder-gray-500"
+                          />
+                        </div>
+                        <select
+                          value={editSector}
+                          onChange={(e) => setEditSector(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500"
+                        >
+                          {sectors.map(sector => (
+                            <option key={sector.id} value={sector.name}>{sector.name}</option>
+                          ))}
+                        </select>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={handleCancelEditIngredient}
+                            className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveEditIngredient(ing.id)}
+                            className="px-3 py-1 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // View mode
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-white">{ing.ingredient?.name}</span>
+                          {ing.quantity && (
+                            <span className="text-gray-600 dark:text-gray-400 ml-2">
+                              ({ing.quantity}{ing.unit || ''})
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            • {ing.ingredient?.sector}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleStartEditIngredient(ing)}
+                            className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded transition"
+                            title="Edit ingredient"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRemoveIngredient(ing.id)}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition"
+                            title="Remove ingredient"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

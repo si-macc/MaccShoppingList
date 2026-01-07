@@ -23,6 +23,11 @@ export default function ShoppingListPage() {
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set())
   const [selectedStapleIds, setSelectedStapleIds] = useState<Set<string>>(new Set())
   
+  // Ingredient filters
+  const [selectedIngredientFilters, setSelectedIngredientFilters] = useState<Set<string>>(new Set())
+  const [availableIngredients, setAvailableIngredients] = useState<string[]>([])
+  const [ingredientDropdownOpen, setIngredientDropdownOpen] = useState(false)
+  
   // Generated list
   const [shoppingList, setShoppingList] = useState<any>(null)
 
@@ -89,7 +94,19 @@ export default function ShoppingListPage() {
       .select('*')
       .order('name')
 
-    if (recipesData) setRecipes(recipesData as RecipeWithIngredients[])
+    if (recipesData) {
+      setRecipes(recipesData as RecipeWithIngredients[])
+      // Extract all unique ingredients
+      const allIngredients = new Set<string>()
+      recipesData.forEach(recipe => {
+        recipe.recipe_ingredients?.forEach((ri: any) => {
+          if (ri.ingredient?.name) {
+            allIngredients.add(ri.ingredient.name)
+          }
+        })
+      })
+      setAvailableIngredients(Array.from(allIngredients).sort())
+    }
     if (staplesData) {
       setStaples(staplesData)
       // Auto-select default staples
@@ -99,6 +116,31 @@ export default function ShoppingListPage() {
     
     setLoading(false)
   }
+
+  const toggleIngredientFilter = (ingredientName: string) => {
+    const newSet = new Set(selectedIngredientFilters)
+    if (newSet.has(ingredientName)) {
+      newSet.delete(ingredientName)
+    } else {
+      newSet.add(ingredientName)
+    }
+    setSelectedIngredientFilters(newSet)
+  }
+
+  const clearIngredientFilters = () => {
+    setSelectedIngredientFilters(new Set())
+  }
+
+  // Filter recipes based on selected ingredients
+  const filteredRecipes = selectedIngredientFilters.size === 0 
+    ? recipes
+    : recipes.filter(recipe => {
+        const recipeIngredients = recipe.recipe_ingredients?.map(ri => ri.ingredient?.name).filter(Boolean) || []
+        // Recipe must contain ALL selected ingredients
+        return Array.from(selectedIngredientFilters).every(filter => 
+          recipeIngredients.includes(filter)
+        )
+      })
 
   const toggleRecipe = (id: string) => {
     const newSet = new Set(selectedRecipeIds)
@@ -247,13 +289,107 @@ export default function ShoppingListPage() {
       {/* Content */}
       {activeTab === 'recipes' && (
         <div>
+          {/* Ingredient Filters */}
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 dark:text-white">Filter by Ingredients</h3>
+              {selectedIngredientFilters.size > 0 && (
+                <button
+                  onClick={clearIngredientFilters}
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Clear all ({selectedIngredientFilters.size})
+                </button>
+              )}
+            </div>
+            
+            {/* Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIngredientDropdownOpen(!ingredientDropdownOpen)}
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-left flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+              >
+                <span className="text-gray-700 dark:text-gray-300">
+                  {selectedIngredientFilters.size === 0 
+                    ? 'Select ingredients...' 
+                    : `${selectedIngredientFilters.size} ingredient${selectedIngredientFilters.size > 1 ? 's' : ''} selected`
+                  }
+                </span>
+                <svg className={`w-5 h-5 text-gray-400 transition-transform ${ingredientDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {ingredientDropdownOpen && (
+                <div className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  {availableIngredients.map(ingredient => {
+                    const isSelected = selectedIngredientFilters.has(ingredient)
+                    return (
+                      <button
+                        key={ingredient}
+                        onClick={() => toggleIngredientFilter(ingredient)}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center space-x-3"
+                      >
+                        <div className={`w-5 h-5 border-2 rounded flex items-center justify-center ${
+                          isSelected 
+                            ? 'bg-primary-600 border-primary-600' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-gray-900 dark:text-white">{ingredient}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            
+            {/* Selected Chips */}
+            {selectedIngredientFilters.size > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Array.from(selectedIngredientFilters).map(ingredient => (
+                  <span
+                    key={ingredient}
+                    className="inline-flex items-center space-x-1 px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm"
+                  >
+                    <span>{ingredient}</span>
+                    <button
+                      onClick={() => toggleIngredientFilter(ingredient)}
+                      className="hover:text-primary-900 dark:hover:text-primary-100"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            {selectedIngredientFilters.size > 0 && (
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                Showing recipes with all selected ingredients ({filteredRecipes.length} of {recipes.length})
+              </p>
+            )}
+          </div>
+
+          {/* Recipe Grid */}
           {recipes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
               <p className="text-gray-500 dark:text-gray-400">No recipes yet. Go to Edit page to create some!</p>
             </div>
+          ) : filteredRecipes.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400">No recipes match the selected ingredients</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {recipes.map((recipe) => (
+              {filteredRecipes.map((recipe) => (
                 <RecipeSelectionCard
                   key={recipe.id}
                   recipe={recipe}
