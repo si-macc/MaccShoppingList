@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ShoppingList } from '../types'
 import { useLoadedList } from '../contexts/LoadedListContext'
+import { ClipboardIcon, CheckIcon, TrashIcon, LoadingIcon } from '../components/Icons'
 
 export default function HistoryPage() {
   const navigate = useNavigate()
@@ -120,57 +121,60 @@ export default function HistoryPage() {
           {lists.map((list) => (
             <div
               key={list.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg transition"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{list.name}</h3>
-                    {list.completed_at ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300">
-                        ✓ Completed
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
-                        Active
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    <p>Created: {formatDate(list.created_at)}</p>
-                    {list.completed_at && (
-                      <p>Completed: {formatDate(list.completed_at)}</p>
-                    )}
-                  </div>
-                </div>
+              {/* Top row: Name and status badge */}
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{list.name}</h3>
+                {list.completed_at ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300">
+                    Completed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
+                    Active
+                  </span>
+                )}
+              </div>
+              
+              {/* Date info */}
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p>Created: {formatDate(list.created_at)}</p>
+                {list.completed_at && (
+                  <p>Completed: {formatDate(list.completed_at)}</p>
+                )}
+              </div>
 
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleLoadList(list)}
-                    disabled={loadingListId === list.id}
-                    className="px-3 py-2 text-sm bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800 transition disabled:opacity-50"
-                    title="Load this list"
-                  >
-                    {loadingListId === list.id ? '⏳ Loading...' : '📋 Load'}
-                  </button>
-                  {!list.completed_at && (
-                    <button
-                      onClick={() => handleMarkComplete(list.id)}
-                      className="px-3 py-2 text-sm bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition"
-                      title="Mark as completed"
-                    >
-                      ✓ Complete
-                    </button>
+              {/* Action buttons - full width on mobile */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleLoadList(list)}
+                  disabled={loadingListId === list.id}
+                  className="flex-1 flex items-center justify-center p-2 bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800 transition disabled:opacity-50"
+                  title="Load this list"
+                >
+                  {loadingListId === list.id ? (
+                    <LoadingIcon className="w-5 h-5" />
+                  ) : (
+                    <ClipboardIcon className="w-5 h-5" />
                   )}
+                </button>
+                {!list.completed_at && (
                   <button
-                    onClick={() => handleDelete(list.id)}
-                    className="px-3 py-2 text-sm bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition"
-                    title="Delete list"
+                    onClick={() => handleMarkComplete(list.id)}
+                    className="flex-1 flex items-center justify-center p-2 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition"
+                    title="Mark as completed"
                   >
-                    🗑️ Delete
+                    <CheckIcon className="w-5 h-5" />
                   </button>
-                </div>
+                )}
+                <button
+                  onClick={() => handleDelete(list.id)}
+                  className="flex-1 flex items-center justify-center p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition"
+                  title="Delete list"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
               </div>
             </div>
           ))}

@@ -1,4 +1,5 @@
 import { Staple } from '../types'
+import { PencilIcon, TrashIcon } from './Icons'
 
 interface StaplesListProps {
   staples: Staple[]
@@ -38,20 +39,20 @@ export default function StaplesList({ staples, onEdit, onDelete }: StaplesListPr
                   )}
                 </div>
                 
-                <div className="flex space-x-2">
+                <div className="flex space-x-1">
                   <button
                     onClick={() => onEdit(staple)}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded transition"
+                    className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded transition"
                     title="Edit staple"
                   >
-                    ✏️
+                    <PencilIcon className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onDelete(staple.id)}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition"
+                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition"
                     title="Delete staple"
                   >
-                    🗑️
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>
