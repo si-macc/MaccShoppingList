@@ -1,4 +1,5 @@
 import { RecipeWithIngredients } from '../types'
+import { PencilIcon, TrashIcon } from './Icons'
 
 interface RecipeCardProps {
   recipe: RecipeWithIngredients
@@ -21,17 +22,17 @@ export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps
         <div className="absolute top-2 right-2 flex space-x-2">
           <button
             onClick={() => onEdit(recipe)}
-            className="p-2 bg-white dark:bg-gray-700 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+            className="p-2 bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-600 transition"
             title="Edit recipe"
           >
-            ✏️
+            <PencilIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(recipe.id)}
-            className="p-2 bg-white dark:bg-gray-700 rounded-full shadow-md hover:bg-red-50 dark:hover:bg-red-900/50 transition"
+            className="p-2 bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 rounded-full shadow-md hover:bg-red-50 dark:hover:bg-red-900/50 transition"
             title="Delete recipe"
           >
-            🗑️
+            <TrashIcon className="w-4 h-4" />
           </button>
         </div>
       </div>

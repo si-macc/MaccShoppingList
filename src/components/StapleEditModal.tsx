@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Staple } from '../types'
+import { useState, useEffect } from 'react'
+import { Staple, SupermarketSector } from '../types'
 import { supabase } from '../lib/supabase'
 
 interface StapleEditModalProps {
@@ -8,20 +8,33 @@ interface StapleEditModalProps {
   onClose: () => void
 }
 
-const SECTORS = [
-  'Fresh Produce',
-  'Meat & Seafood',
-  'Dairy & Eggs',
-  'Bakery & Bread',
-  'Pantry & Canned Goods',
-  'Frozen Foods'
-]
-
 export default function StapleEditModal({ staple, isCreating, onClose }: StapleEditModalProps) {
   const [name, setName] = useState(staple?.name || '')
-  const [sector, setSector] = useState(staple?.sector || SECTORS[0])
+  const [sector, setSector] = useState(staple?.sector || '')
+  const [sectors, setSectors] = useState<SupermarketSector[]>([])
   const [isDefault, setIsDefault] = useState(staple?.is_default || false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetchSectors()
+  }, [])
+
+  const fetchSectors = async () => {
+    console.log('StapleEditModal: fetching sectors...')
+    const { data, error } = await supabase
+      .from('supermarket_sectors')
+      .select('*')
+      .order('display_order')
+
+    console.log('StapleEditModal: sectors fetched:', data, error)
+    if (!error && data) {
+      setSectors(data)
+      // Set default sector if not already set
+      if (!sector && data.length > 0) {
+        setSector(data[0].name)
+      }
+    }
+  }
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -107,9 +120,9 @@ export default function StapleEditModal({ staple, isCreating, onClose }: StapleE
               onChange={(e) => setSector(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
-              {SECTORS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {sectors.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
                 </option>
               ))}
             </select>

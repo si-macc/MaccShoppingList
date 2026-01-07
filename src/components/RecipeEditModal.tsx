@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RecipeWithIngredients, Ingredient, RecipeIngredient } from '../types'
+import { RecipeWithIngredients, Ingredient, RecipeIngredient, SupermarketSector } from '../types'
 import { supabase } from '../lib/supabase'
 
 interface RecipeEditModalProps {
@@ -8,32 +8,39 @@ interface RecipeEditModalProps {
   onClose: () => void
 }
 
-const SECTORS = [
-  'Fresh Produce',
-  'Meat & Seafood',
-  'Dairy & Eggs',
-  'Bakery & Bread',
-  'Pantry & Canned Goods',
-  'Frozen Foods'
-]
-
 export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeEditModalProps) {
   const [name, setName] = useState(recipe.name)
   const [instructions, setInstructions] = useState(recipe.instructions || '')
   const [imageUrl, setImageUrl] = useState(recipe.image_url || '')
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>(recipe.recipe_ingredients)
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([])
+  const [sectors, setSectors] = useState<SupermarketSector[]>([])
   const [saving, setSaving] = useState(false)
 
   // New ingredient form
   const [newIngredientName, setNewIngredientName] = useState('')
-  const [newIngredientSector, setNewIngredientSector] = useState(SECTORS[0])
+  const [newIngredientSector, setNewIngredientSector] = useState('')
   const [newIngredientQuantity, setNewIngredientQuantity] = useState('')
   const [newIngredientUnit, setNewIngredientUnit] = useState('')
 
   useEffect(() => {
     fetchIngredients()
+    fetchSectors()
   }, [])
+
+  const fetchSectors = async () => {
+    const { data, error } = await supabase
+      .from('supermarket_sectors')
+      .select('*')
+      .order('display_order')
+
+    if (!error && data) {
+      setSectors(data)
+      if (data.length > 0 && !newIngredientSector) {
+        setNewIngredientSector(data[0].name)
+      }
+    }
+  }
 
   const fetchIngredients = async () => {
     const { data, error } = await supabase
@@ -276,8 +283,8 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                   onChange={(e) => setNewIngredientSector(e.target.value)}
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  {SECTORS.map(sector => (
-                    <option key={sector} value={sector}>{sector}</option>
+                  {sectors.map(sector => (
+                    <option key={sector.id} value={sector.name}>{sector.name}</option>
                   ))}
                 </select>
               </div>
