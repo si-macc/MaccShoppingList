@@ -1,8 +1,10 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useOffline } from '../contexts/OfflineContext'
 import { useTheme } from '../contexts/ThemeContext'
+import SettingsModal from './SettingsModal'
+import { CogIcon } from './Icons'
 
 interface LayoutProps {
   children: ReactNode
@@ -12,6 +14,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { isOnline } = useOffline()
   const { theme, toggleTheme } = useTheme()
+  const [showSettings, setShowSettings] = useState(false)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -59,6 +62,15 @@ export default function Layout({ children }: LayoutProps) {
             </nav>
 
             <div className="flex items-center space-x-4">
+              {/* Settings Button */}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                aria-label="Settings"
+              >
+                <CogIcon className="w-5 h-5" />
+              </button>
+
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -113,6 +125,11 @@ export default function Layout({ children }: LayoutProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
     </div>
   )
 }
