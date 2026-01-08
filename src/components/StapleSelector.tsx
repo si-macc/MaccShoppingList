@@ -20,16 +20,21 @@ export default function StapleSelector({ staples, selectedIds, onToggle, onEdit,
 
   const groupedBySector = staples.reduce((acc, staple) => {
     const sectorName = staple.sector?.name || 'Other'
+    const displayOrder = staple.sector?.display_order ?? 999
     if (!acc[sectorName]) {
-      acc[sectorName] = []
+      acc[sectorName] = { staples: [], displayOrder }
     }
-    acc[sectorName].push(staple)
+    acc[sectorName].staples.push(staple)
     return acc
-  }, {} as Record<string, Staple[]>)
+  }, {} as Record<string, { staples: Staple[]; displayOrder: number }>)
+
+  // Sort sectors by display_order
+  const sortedSectors = Object.entries(groupedBySector)
+    .sort(([, a], [, b]) => a.displayOrder - b.displayOrder)
 
   return (
     <div className="space-y-6">
-      {Object.entries(groupedBySector).map(([sector, sectorStaples]) => (
+      {sortedSectors.map(([sector, { staples: sectorStaples }]) => (
         <div key={sector} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
             <h3 className="font-semibold text-gray-900 dark:text-white">{sector}</h3>
