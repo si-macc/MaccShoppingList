@@ -4,8 +4,12 @@ import { supabase } from '../lib/supabase'
 import RecipeSelectionCard from '../components/RecipeSelectionCard'
 import StapleSelector from '../components/StapleSelector'
 import ShoppingListGrid from '../components/ShoppingListGrid'
+import RecipeEditModal from '../components/RecipeEditModal'
+import StapleEditModal from '../components/StapleEditModal'
+import BulkUploadModal from '../components/BulkUploadModal'
+import SectorManager from '../components/SectorManager'
 import { useLoadedList } from '../contexts/LoadedListContext'
-import { ShoppingCartIcon } from '../components/Icons'
+import { ShoppingCartIcon, PlusIcon, UploadIcon, CogIcon } from '../components/Icons'
 
 type ViewMode = 'selection' | 'list'
 
@@ -17,6 +21,7 @@ export default function ShoppingListPage() {
   // Data
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
   const [staples, setStaples] = useState<Staple[]>([])
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   
   // Selections
@@ -30,6 +35,14 @@ export default function ShoppingListPage() {
   
   // Generated list
   const [shoppingList, setShoppingList] = useState<any>(null)
+  
+  // Edit modals
+  const [editingRecipe, setEditingRecipe] = useState<RecipeWithIngredients | null>(null)
+  const [editingStaple, setEditingStaple] = useState<Staple | null>(null)
+  const [isCreatingRecipe, setIsCreatingRecipe] = useState(false)
+  const [isCreatingStaple, setIsCreatingStaple] = useState(false)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [showSectorManager, setShowSectorManager] = useState(false)
 
   // Check for loaded list from history
   useEffect(() => {
@@ -68,7 +81,7 @@ export default function ShoppingListPage() {
   const fetchData = async () => {
     setLoading(true)
     
-    // Fetch recipes with ingredients
+    // Fetch recipes with ingredients (including sector join)
     const { data: recipesData } = await supabase
       .from('recipes')
       .select(`
@@ -82,16 +95,28 @@ export default function ShoppingListPage() {
           ingredient:ingredients (
             id,
             name,
-            sector
+            sector_id,
+            sector:supermarket_sectors (
+              id,
+              name,
+              display_order
+            )
           )
         )
       `)
       .order('name')
 
-    // Fetch staples
+    // Fetch staples with sector join
     const { data: staplesData } = await supabase
       .from('staples')
-      .select('*')
+      .select(`
+        *,
+        sector:supermarket_sectors (
+          id,
+          name,
+          display_order
+        )
+      `)
       .order('name')
 
     if (recipesData) {
@@ -113,8 +138,81 @@ export default function ShoppingListPage() {
       const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
       setSelectedStapleIds(new Set(defaultIds))
     }
+
+    // Fetch sectors ordered by display_order
+    const { data: sectorsData } = await supabase
+      .from('supermarket_sectors')
+      .select('id, name')
+      .order('display_order')
+
+    if (sectorsData) {
+      setSectors(sectorsData)
+    }
     
     setLoading(false)
+  }
+
+  const handleCreateRecipe = () => {
+    setIsCreatingRecipe(true)
+    setEditingRecipe({
+      id: '',
+      name: '',
+      image_url: null,
+      instructions: null,
+      created_at: '',
+      updated_at: '',
+      recipe_ingredients: []
+    })
+  }
+
+  const handleCreateStaple = () => {
+    setIsCreatingStaple(true)
+    setEditingStaple({
+      id: '',
+      name: '',
+      sector_id: sectors.length > 0 ? sectors[0].id : '',
+      is_default: false,
+      created_at: '',
+      updated_at: ''
+    })
+  }
+
+  const handleCloseRecipeModal = () => {
+    setEditingRecipe(null)
+    setIsCreatingRecipe(false)
+    fetchData()
+  }
+
+  const handleCloseStapleModal = () => {
+    setEditingStaple(null)
+    setIsCreatingStaple(false)
+    fetchData()
+  }
+
+  const handleDeleteRecipe = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this recipe?')) return
+
+    const { error } = await supabase
+      .from('recipes')
+      .delete()
+      .eq('id', id)
+
+    if (!error) {
+      fetchData()
+    }
+  }
+
+  const handleDeleteStaple = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this staple?')) return
+
+    const { error } = await supabase
+      .from('staples')
+      .delete()
+      .eq('id', id)
+
+    if (!error) {
+      fetchData()
+    }
   }
 
   const toggleIngredientFilter = (ingredientName: string) => {
@@ -172,7 +270,8 @@ export default function ShoppingListPage() {
         if (ri.ingredient) {
           items.push({
             name: ri.ingredient.name,
-            sector: ri.ingredient.sector,
+            sector: ri.ingredient.sector?.name || 'Other',
+            sector_id: ri.ingredient.sector_id,
             quantity: ri.quantity,
             unit: ri.unit,
             from_recipe: recipe.name
@@ -186,7 +285,8 @@ export default function ShoppingListPage() {
     for (const staple of selectedStaplesData) {
       items.push({
         name: staple.name,
-        sector: staple.sector,
+        sector: staple.sector?.name || 'Other',
+        sector_id: staple.sector_id,
         quantity: null,
         unit: null,
         from_staple: true
@@ -244,20 +344,47 @@ export default function ShoppingListPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col space-y-4 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Shopping List</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-gray-600 dark:text-gray-300">
-            {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
-          </span>
+      {/* Header with Generate List and Action Buttons */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Shopping List</h2>
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
+            </span>
+            <button
+              onClick={handleGenerateList}
+              disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+              className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ShoppingCartIcon className="w-5 h-5" />
+              <span>Generate List</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={handleGenerateList}
-            disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
-            className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setShowSectorManager(true)}
+            className="flex items-center space-x-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
           >
-            <ShoppingCartIcon className="w-5 h-5" />
-            <span>Generate List</span>
+            <CogIcon className="w-4 h-4" />
+            <span>Sectors</span>
+          </button>
+          <button
+            onClick={() => setShowBulkUpload(true)}
+            className="flex items-center space-x-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
+          >
+            <UploadIcon className="w-4 h-4" />
+            <span>Upload</span>
+          </button>
+          <button
+            onClick={activeTab === 'recipes' ? handleCreateRecipe : handleCreateStaple}
+            className="flex items-center space-x-2 px-3 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+          >
+            <PlusIcon className="w-4 h-4" />
+            <span>Add {activeTab === 'recipes' ? 'Recipe' : 'Staple'}</span>
           </button>
         </div>
       </div>
@@ -381,7 +508,14 @@ export default function ShoppingListPage() {
           {/* Recipe Grid */}
           {recipes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-              <p className="text-gray-500 dark:text-gray-400">No recipes yet. Go to Edit page to create some!</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No recipes yet. Create your first recipe!</p>
+              <button
+                onClick={handleCreateRecipe}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Recipe</span>
+              </button>
             </div>
           ) : filteredRecipes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -395,6 +529,8 @@ export default function ShoppingListPage() {
                   recipe={recipe}
                   isSelected={selectedRecipeIds.has(recipe.id)}
                   onToggle={() => toggleRecipe(recipe.id)}
+                  onEdit={() => setEditingRecipe(recipe)}
+                  onDelete={() => handleDeleteRecipe(recipe.id)}
                 />
               ))}
             </div>
@@ -403,10 +539,63 @@ export default function ShoppingListPage() {
       )}
 
       {activeTab === 'staples' && (
-        <StapleSelector
-          staples={staples}
-          selectedIds={selectedStapleIds}
-          onToggle={toggleStaple}
+        <div>
+          {staples.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No staples yet. Create your first staple!</p>
+              <button
+                onClick={handleCreateStaple}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Staple</span>
+              </button>
+            </div>
+          ) : (
+            <StapleSelector
+              staples={staples}
+              selectedIds={selectedStapleIds}
+              onToggle={toggleStaple}
+              onEdit={setEditingStaple}
+              onDelete={handleDeleteStaple}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Modals */}
+      {editingRecipe && (
+        <RecipeEditModal
+          recipe={editingRecipe}
+          isCreating={isCreatingRecipe}
+          onClose={handleCloseRecipeModal}
+        />
+      )}
+
+      {editingStaple && (
+        <StapleEditModal
+          staple={editingStaple}
+          isCreating={isCreatingStaple}
+          onClose={handleCloseStapleModal}
+        />
+      )}
+
+      {showBulkUpload && (
+        <BulkUploadModal
+          type={activeTab}
+          onClose={() => {
+            setShowBulkUpload(false)
+            fetchData()
+          }}
+        />
+      )}
+
+      {showSectorManager && (
+        <SectorManager 
+          onClose={() => setShowSectorManager(false)} 
+          onSectorsChanged={() => {
+            fetchData()
+          }}
         />
       )}
     </div>

@@ -80,7 +80,7 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
       const itemsToInsert = shoppingList.items.map((item: any) => ({
         shopping_list_id: savedList.id,
         item_name: item.name,
-        sector: item.sector,
+        sector_id: item.sector_id,
         quantity: item.quantity,
         is_checked: false
       }))

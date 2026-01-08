@@ -76,66 +76,20 @@ export default function SectorManager({ onClose, onSectorsChanged }: SectorManag
     }
 
     setSaving(true)
-    console.log('=== SECTOR UPDATE DEBUG ===')
-    console.log('Old name:', JSON.stringify(oldName))
-    console.log('New name:', JSON.stringify(newName))
-
-    // First, let's see what staples exist with the old sector name
-    const { data: existingStaples } = await supabase
-      .from('staples')
-      .select('id, name, sector')
-    console.log('All staples before update:', JSON.stringify(existingStaples, null, 2))
-    console.log('Looking for sector:', JSON.stringify(oldName))
-    console.log('Staples matching old sector:', existingStaples?.filter(s => s.sector === oldName))
-
-    // Update the sector name
-    const { data: sectorData, error: sectorError } = await supabase
+    
+    // Update the sector name - since we use sector_id foreign key references,
+    // all ingredients, staples, and shopping list items will automatically
+    // show the new name via their joins
+    const { error: sectorError } = await supabase
       .from('supermarket_sectors')
       .update({ name: newName })
       .eq('id', id)
-      .select()
-
-    console.log('Sector update result:', { sectorData, sectorError })
 
     if (sectorError) {
       alert('Failed to update sector: ' + sectorError.message)
       setSaving(false)
       return
     }
-
-    // Update all ingredients with the old sector name
-    const { data: ingredientData, error: ingredientError } = await supabase
-      .from('ingredients')
-      .update({ sector: newName })
-      .eq('sector', oldName)
-      .select()
-
-    console.log('Ingredients update:', { count: ingredientData?.length, ingredientError })
-
-    // Update all staples with the old sector name
-    const { data: stapleData, error: stapleError } = await supabase
-      .from('staples')
-      .update({ sector: newName })
-      .eq('sector', oldName)
-      .select()
-
-    console.log('Staples update:', { updatedCount: stapleData?.length, stapleData, stapleError })
-
-    // Verify staples after update
-    const { data: staplesAfter } = await supabase
-      .from('staples')
-      .select('id, name, sector')
-    console.log('All staples AFTER update:', staplesAfter)
-
-    // Update all shopping list items with the old sector name
-    const { data: shoppingData, error: shoppingListError } = await supabase
-      .from('shopping_list_items')
-      .update({ sector: newName })
-      .eq('sector', oldName)
-      .select()
-
-    console.log('Shopping list items update:', { count: shoppingData?.length, shoppingListError })
-    console.log('=== END DEBUG ===')
 
     setEditingId(null)
     setEditingName('')

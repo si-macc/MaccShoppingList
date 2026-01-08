@@ -10,7 +10,7 @@ interface StapleEditModalProps {
 
 export default function StapleEditModal({ staple, isCreating, onClose }: StapleEditModalProps) {
   const [name, setName] = useState(staple?.name || '')
-  const [sector, setSector] = useState(staple?.sector || '')
+  const [sectorId, setSectorId] = useState(staple?.sector_id || '')
   const [sectors, setSectors] = useState<SupermarketSector[]>([])
   const [isDefault, setIsDefault] = useState(staple?.is_default || false)
   const [saving, setSaving] = useState(false)
@@ -30,8 +30,8 @@ export default function StapleEditModal({ staple, isCreating, onClose }: StapleE
     if (!error && data) {
       setSectors(data)
       // Set default sector if not already set
-      if (!sector && data.length > 0) {
-        setSector(data[0].name)
+      if (!sectorId && data.length > 0) {
+        setSectorId(data[0].id)
       }
     }
   }
@@ -39,6 +39,11 @@ export default function StapleEditModal({ staple, isCreating, onClose }: StapleE
   const handleSave = async () => {
     if (!name.trim()) {
       alert('Please enter a staple name')
+      return
+    }
+
+    if (!sectorId) {
+      alert('Please select a sector')
       return
     }
 
@@ -50,7 +55,7 @@ export default function StapleEditModal({ staple, isCreating, onClose }: StapleE
           .from('staples')
           .insert({
             name: name.trim(),
-            sector,
+            sector_id: sectorId,
             is_default: isDefault
           })
 
@@ -60,7 +65,7 @@ export default function StapleEditModal({ staple, isCreating, onClose }: StapleE
           .from('staples')
           .update({
             name: name.trim(),
-            sector,
+            sector_id: sectorId,
             is_default: isDefault
           })
           .eq('id', staple!.id)
@@ -116,12 +121,12 @@ export default function StapleEditModal({ staple, isCreating, onClose }: StapleE
               Sector *
             </label>
             <select
-              value={sector}
-              onChange={(e) => setSector(e.target.value)}
+              value={sectorId}
+              onChange={(e) => setSectorId(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               {sectors.map((s) => (
-                <option key={s.id} value={s.name}>
+                <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}

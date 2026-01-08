@@ -6,7 +6,6 @@ import { Session } from '@supabase/supabase-js'
 // Pages
 import LoginPage from './pages/LoginPage'
 import ShoppingListPage from './pages/ShoppingListPage'
-import EditPage from './pages/EditPage'
 import HistoryPage from './pages/HistoryPage'
 
 // Layout
@@ -51,7 +50,6 @@ function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<ShoppingListPage />} />
-          <Route path="/edit" element={<EditPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

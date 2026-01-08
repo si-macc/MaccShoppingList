@@ -13,7 +13,7 @@ export default function EditPage() {
   const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
   const [staples, setStaples] = useState<Staple[]>([])
-  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
+  const [sectors, setSectors] = useState<{ id: string; name: string; display_order: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [editingRecipe, setEditingRecipe] = useState<RecipeWithIngredients | null>(null)
   const [editingStaple, setEditingStaple] = useState<Staple | null>(null)
@@ -45,7 +45,11 @@ export default function EditPage() {
           ingredient:ingredients (
             id,
             name,
-            sector
+            sector_id,
+            sector:supermarket_sectors (
+              id,
+              name
+            )
           )
         )
       `)
@@ -61,21 +65,27 @@ export default function EditPage() {
     setLoading(true)
     const { data, error } = await supabase
       .from('staples')
-      .select('*')
-      .order('sector')
+      .select(`
+        *,
+        sector:supermarket_sectors (
+          id,
+          name,
+          display_order
+        )
+      `)
       .order('name')
 
     if (!error && data) {
       console.log('📦 Fetched Staples:', data)
-      console.log('📦 Staple sectors:', Array.from(new Set(data.map(s => s.sector))))
+      console.log('📦 Staple sectors:', Array.from(new Set(data.map(s => s.sector?.name))))
       setStaples(data)
     }
 
-    // Fetch sectors
+    // Fetch sectors with display_order for proper sorting
     const { data: sectorsData } = await supabase
       .from('supermarket_sectors')
-      .select('id, name')
-      .order('name')
+      .select('id, name, display_order')
+      .order('display_order')
 
     if (sectorsData) {
       console.log('🏪 Fetched Sectors from DB:', sectorsData)
@@ -100,10 +110,12 @@ export default function EditPage() {
 
   const handleCreateStaple = () => {
     setIsCreatingStaple(true)
+    // Use the first sector as default, or empty if no sectors loaded yet
+    const defaultSectorId = sectors.find(s => s.name === 'Fresh Produce')?.id || sectors[0]?.id || ''
     setEditingStaple({
       id: '',
       name: '',
-      sector: 'Fresh Produce',
+      sector_id: defaultSectorId,
       is_default: false,
       created_at: '',
       updated_at: ''
