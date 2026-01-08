@@ -4,19 +4,28 @@ import { supabase } from '../lib/supabase'
 import RecipeSelectionCard from '../components/RecipeSelectionCard'
 import StapleSelector from '../components/StapleSelector'
 import ShoppingListGrid from '../components/ShoppingListGrid'
+import RecipeGrid from '../components/RecipeGrid'
+import RecipeEditModal from '../components/RecipeEditModal'
+import StaplesList from '../components/StaplesList'
+import StapleEditModal from '../components/StapleEditModal'
+import BulkUploadModal from '../components/BulkUploadModal'
+import SectorManager from '../components/SectorManager'
 import { useLoadedList } from '../contexts/LoadedListContext'
-import { ShoppingCartIcon } from '../components/Icons'
+import { ShoppingCartIcon, PlusIcon, UploadIcon, CogIcon, PencilIcon } from '../components/Icons'
 
 type ViewMode = 'selection' | 'list'
+type PageMode = 'shopping' | 'manage'
 
 export default function ShoppingListPage() {
   const { loadedList, clearLoadedList } = useLoadedList()
   const [viewMode, setViewMode] = useState<ViewMode>('selection')
+  const [pageMode, setPageMode] = useState<PageMode>('shopping')
   const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
   
   // Data
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
   const [staples, setStaples] = useState<Staple[]>([])
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   
   // Selections
@@ -30,6 +39,14 @@ export default function ShoppingListPage() {
   
   // Generated list
   const [shoppingList, setShoppingList] = useState<any>(null)
+  
+  // Edit modals
+  const [editingRecipe, setEditingRecipe] = useState<RecipeWithIngredients | null>(null)
+  const [editingStaple, setEditingStaple] = useState<Staple | null>(null)
+  const [isCreatingRecipe, setIsCreatingRecipe] = useState(false)
+  const [isCreatingStaple, setIsCreatingStaple] = useState(false)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [showSectorManager, setShowSectorManager] = useState(false)
 
   // Check for loaded list from history
   useEffect(() => {
@@ -113,8 +130,81 @@ export default function ShoppingListPage() {
       const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
       setSelectedStapleIds(new Set(defaultIds))
     }
+
+    // Fetch sectors ordered by display_order
+    const { data: sectorsData } = await supabase
+      .from('supermarket_sectors')
+      .select('id, name')
+      .order('display_order')
+
+    if (sectorsData) {
+      setSectors(sectorsData)
+    }
     
     setLoading(false)
+  }
+
+  const handleCreateRecipe = () => {
+    setIsCreatingRecipe(true)
+    setEditingRecipe({
+      id: '',
+      name: '',
+      image_url: null,
+      instructions: null,
+      created_at: '',
+      updated_at: '',
+      recipe_ingredients: []
+    })
+  }
+
+  const handleCreateStaple = () => {
+    setIsCreatingStaple(true)
+    setEditingStaple({
+      id: '',
+      name: '',
+      sector: sectors.length > 0 ? sectors[0].name : 'Fresh Produce',
+      is_default: false,
+      created_at: '',
+      updated_at: ''
+    })
+  }
+
+  const handleCloseRecipeModal = () => {
+    setEditingRecipe(null)
+    setIsCreatingRecipe(false)
+    fetchData()
+  }
+
+  const handleCloseStapleModal = () => {
+    setEditingStaple(null)
+    setIsCreatingStaple(false)
+    fetchData()
+  }
+
+  const handleDeleteRecipe = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this recipe?')) return
+
+    const { error } = await supabase
+      .from('recipes')
+      .delete()
+      .eq('id', id)
+
+    if (!error) {
+      fetchData()
+    }
+  }
+
+  const handleDeleteStaple = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this staple?')) return
+
+    const { error } = await supabase
+      .from('staples')
+      .delete()
+      .eq('id', id)
+
+    if (!error) {
+      fetchData()
+    }
   }
 
   const toggleIngredientFilter = (ingredientName: string) => {
@@ -244,23 +334,93 @@ export default function ShoppingListPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col space-y-4 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Shopping List</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-gray-600 dark:text-gray-300">
-            {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
-          </span>
+      {/* Mode Toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
           <button
-            onClick={handleGenerateList}
-            disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
-            className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setPageMode('shopping')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              pageMode === 'shopping'
+                ? 'bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
           >
-            <ShoppingCartIcon className="w-5 h-5" />
-            <span>Generate List</span>
+            <span className="flex items-center space-x-2">
+              <ShoppingCartIcon className="w-4 h-4" />
+              <span>Shopping</span>
+            </span>
+          </button>
+          <button
+            onClick={() => setPageMode('manage')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              pageMode === 'manage'
+                ? 'bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <span className="flex items-center space-x-2">
+              <PencilIcon className="w-4 h-4" />
+              <span>Manage</span>
+            </span>
           </button>
         </div>
+        
+        {/* Action buttons for manage mode */}
+        {pageMode === 'manage' && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowSectorManager(true)}
+              className="flex items-center space-x-2 px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
+            >
+              <CogIcon className="w-4 h-4" />
+              <span>Sectors</span>
+            </button>
+            <button
+              onClick={() => setShowBulkUpload(true)}
+              className="flex items-center space-x-2 px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition"
+            >
+              <UploadIcon className="w-4 h-4" />
+              <span>Bulk Upload</span>
+            </button>
+            <button
+              onClick={activeTab === 'recipes' ? handleCreateRecipe : handleCreateStaple}
+              className="flex items-center space-x-2 px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+            >
+              <PlusIcon className="w-4 h-4" />
+              <span>Add {activeTab === 'recipes' ? 'Recipe' : 'Staple'}</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Header for shopping mode */}
+      {pageMode === 'shopping' && (
+        <div className="flex flex-col space-y-4 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Shopping List</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
+            </span>
+            <button
+              onClick={handleGenerateList}
+              disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+              className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ShoppingCartIcon className="w-5 h-5" />
+              <span>Generate List</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header for manage mode */}
+      {pageMode === 'manage' && (
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Manage {activeTab === 'recipes' ? 'Recipes' : 'Staples'}
+          </h2>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700 mb-6">
@@ -287,7 +447,7 @@ export default function ShoppingListPage() {
       </div>
 
       {/* Content */}
-      {activeTab === 'recipes' && (
+      {activeTab === 'recipes' && pageMode === 'shopping' && (
         <div>
           {/* Ingredient Filters */}
           <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
@@ -381,7 +541,14 @@ export default function ShoppingListPage() {
           {/* Recipe Grid */}
           {recipes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-              <p className="text-gray-500 dark:text-gray-400">No recipes yet. Go to Edit page to create some!</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No recipes yet. Switch to Manage mode to create some!</p>
+              <button
+                onClick={() => setPageMode('manage')}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Recipe</span>
+              </button>
             </div>
           ) : filteredRecipes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
@@ -402,11 +569,94 @@ export default function ShoppingListPage() {
         </div>
       )}
 
-      {activeTab === 'staples' && (
+      {activeTab === 'recipes' && pageMode === 'manage' && (
+        <div>
+          {recipes.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No recipes yet. Create your first recipe!</p>
+              <button
+                onClick={handleCreateRecipe}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Recipe</span>
+              </button>
+            </div>
+          ) : (
+            <RecipeGrid
+              recipes={recipes}
+              onEdit={setEditingRecipe}
+              onDelete={handleDeleteRecipe}
+            />
+          )}
+        </div>
+      )}
+
+      {activeTab === 'staples' && pageMode === 'shopping' && (
         <StapleSelector
           staples={staples}
           selectedIds={selectedStapleIds}
           onToggle={toggleStaple}
+        />
+      )}
+
+      {activeTab === 'staples' && pageMode === 'manage' && (
+        <div>
+          {staples.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No staples yet. Create your first staple!</p>
+              <button
+                onClick={handleCreateStaple}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Your First Staple</span>
+              </button>
+            </div>
+          ) : (
+            <StaplesList
+              staples={staples}
+              sectors={sectors}
+              onEdit={setEditingStaple}
+              onDelete={handleDeleteStaple}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Modals */}
+      {editingRecipe && (
+        <RecipeEditModal
+          recipe={editingRecipe}
+          isCreating={isCreatingRecipe}
+          onClose={handleCloseRecipeModal}
+        />
+      )}
+
+      {editingStaple && (
+        <StapleEditModal
+          staple={editingStaple}
+          isCreating={isCreatingStaple}
+          onClose={handleCloseStapleModal}
+        />
+      )}
+
+      {showBulkUpload && (
+        <BulkUploadModal
+          type={activeTab}
+          onClose={() => {
+            setShowBulkUpload(false)
+            fetchData()
+          }}
+        />
+      )}
+
+      {showSectorManager && (
+        <SectorManager 
+          onClose={() => setShowSectorManager(false)} 
+          onSectorsChanged={() => {
+            fetchData()
+          }}
         />
       )}
     </div>

@@ -24,6 +24,11 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const [newIngredientSector, setNewIngredientSector] = useState('')
   const [newIngredientQuantity, setNewIngredientQuantity] = useState('')
   const [newIngredientUnit, setNewIngredientUnit] = useState('')
+  
+  // Existing ingredient selection
+  const [selectedExistingIngredient, setSelectedExistingIngredient] = useState('')
+  const [existingIngredientQuantity, setExistingIngredientQuantity] = useState('')
+  const [existingIngredientUnit, setExistingIngredientUnit] = useState('')
 
   // Edit ingredient state
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null)
@@ -102,6 +107,35 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
     setNewIngredientName('')
     setNewIngredientQuantity('')
     setNewIngredientUnit('')
+  }
+
+  const handleAddExistingIngredient = () => {
+    if (!selectedExistingIngredient) return
+
+    const ingredient = availableIngredients.find(i => i.id === selectedExistingIngredient)
+    if (!ingredient) return
+
+    // Check if already added
+    if (ingredients.some(i => i.ingredient_id === ingredient.id)) {
+      alert('This ingredient is already in the recipe')
+      return
+    }
+
+    const newRecipeIngredient: RecipeIngredient = {
+      id: `temp-${Date.now()}`,
+      recipe_id: recipe.id,
+      ingredient_id: ingredient.id,
+      quantity: existingIngredientQuantity || null,
+      unit: existingIngredientUnit || null,
+      ingredient: ingredient
+    }
+
+    setIngredients([...ingredients, newRecipeIngredient])
+    
+    // Reset form
+    setSelectedExistingIngredient('')
+    setExistingIngredientQuantity('')
+    setExistingIngredientUnit('')
   }
 
   const handleRemoveIngredient = (id: string) => {
@@ -510,9 +544,56 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
               </div>
             )}
 
-            {/* Add Ingredient Form */}
+            {/* Add Existing Ingredient */}
+            {availableIngredients.length > 0 && (
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Existing Ingredient</p>
+                
+                <select
+                  value={selectedExistingIngredient}
+                  onChange={(e) => setSelectedExistingIngredient(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="">Select an ingredient...</option>
+                  {availableIngredients
+                    .filter(ing => !ingredients.some(i => i.ingredient_id === ing.id))
+                    .map(ing => (
+                      <option key={ing.id} value={ing.id}>
+                        {ing.name} ({ing.sector})
+                      </option>
+                    ))}
+                </select>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={existingIngredientQuantity}
+                    onChange={(e) => setExistingIngredientQuantity(e.target.value)}
+                    placeholder="Quantity (e.g., 500)"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
+                  />
+                  <input
+                    type="text"
+                    value={existingIngredientUnit}
+                    onChange={(e) => setExistingIngredientUnit(e.target.value)}
+                    placeholder="Unit (e.g., g, ml)"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleAddExistingIngredient}
+                  disabled={!selectedExistingIngredient}
+                  className="w-full py-2 bg-primary-100 dark:bg-primary-900/30 hover:bg-primary-200 dark:hover:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  + Add Selected Ingredient
+                </button>
+              </div>
+            )}
+
+            {/* Add New Ingredient Form */}
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Ingredient</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Add New Ingredient</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input

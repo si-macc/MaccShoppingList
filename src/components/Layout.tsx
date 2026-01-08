@@ -47,16 +47,6 @@ export default function Layout({ children }: LayoutProps) {
                 Shopping List
               </Link>
               <Link
-                to="/edit"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                  isActive('/edit') 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' 
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                Edit
-              </Link>
-              <Link
                 to="/history"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition ${
                   isActive('/history') 
@@ -106,14 +96,6 @@ export default function Layout({ children }: LayoutProps) {
               }`}
             >
               Shopping
-            </Link>
-            <Link
-              to="/edit"
-              className={`flex-1 text-center px-3 py-2 text-sm font-medium ${
-                isActive('/edit') ? 'text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/50' : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              Edit
             </Link>
             <Link
               to="/history"
