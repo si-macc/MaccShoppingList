@@ -164,18 +164,110 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       }
 
       let importedCount = 0
-      let skippedCount = 0
+      let updatedCount = 0
 
       for (const recipe of recipeMap.values()) {
         // Check if recipe exists
         const { data: existing } = await supabase
           .from('recipes')
-          .select('id')
+          .select(`
+            id,
+            image_url,
+            instructions,
+            recipe_ingredients (
+              id,
+              quantity,
+              unit,
+              ingredient:ingredients (
+                id,
+                name,
+                sector
+              )
+            )
+          `)
           .eq('name', recipe.name)
           .maybeSingle()
 
         if (existing) {
-          skippedCount++
+          // Check if recipe needs updating
+          let needsUpdate = false
+
+          // Check if image_url or instructions changed
+          if (recipe.image_url !== existing.image_url || recipe.instructions !== existing.instructions) {
+            needsUpdate = true
+            await supabase
+              .from('recipes')
+              .update({ image_url: recipe.image_url, instructions: recipe.instructions })
+              .eq('id', existing.id)
+          }
+
+          // Get current ingredients from DB
+          const currentIngredients = (existing.recipe_ingredients || []).map((ri: any) => ({
+            name: ri.ingredient?.name || '',
+            sector: ri.ingredient?.sector || '',
+            quantity: ri.quantity || null,
+            unit: ri.unit || null,
+            recipeIngredientId: ri.id,
+            ingredientId: ri.ingredient?.id
+          }))
+
+          // Compare ingredients
+          const csvIngredientKeys = recipe.ingredients.map(i => 
+            `${i.name}|${i.sector}|${i.quantity || ''}|${i.unit || ''}`
+          ).sort()
+          const dbIngredientKeys = currentIngredients.map((i: any) => 
+            `${i.name}|${i.sector}|${i.quantity || ''}|${i.unit || ''}`
+          ).sort()
+
+          const ingredientsMatch = 
+            csvIngredientKeys.length === dbIngredientKeys.length &&
+            csvIngredientKeys.every((key, idx) => key === dbIngredientKeys[idx])
+
+          if (!ingredientsMatch) {
+            needsUpdate = true
+
+            // Delete existing recipe_ingredients
+            await supabase
+              .from('recipe_ingredients')
+              .delete()
+              .eq('recipe_id', existing.id)
+
+            // Add new ingredients from CSV
+            for (const ing of recipe.ingredients) {
+              // Find or create ingredient
+              let { data: ingredient } = await supabase
+                .from('ingredients')
+                .select('id')
+                .eq('name', ing.name)
+                .maybeSingle()
+
+              if (!ingredient) {
+                const { data: newIng, error: ingError } = await supabase
+                  .from('ingredients')
+                  .insert({ name: ing.name, sector: ing.sector })
+                  .select()
+                  .single()
+                if (ingError) throw ingError
+                ingredient = newIng
+              }
+
+              if (!ingredient) continue
+
+              // Link to recipe
+              await supabase
+                .from('recipe_ingredients')
+                .insert({
+                  recipe_id: existing.id,
+                  ingredient_id: ingredient.id,
+                  quantity: ing.quantity,
+                  unit: ing.unit
+                })
+            }
+          }
+
+          if (needsUpdate) {
+            updatedCount++
+          }
           continue
         }
 
@@ -223,7 +315,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         importedCount++
       }
 
-      setMessage({ type: 'success', text: `Imported ${importedCount} recipes (${skippedCount} skipped - already exist)` })
+      const messages = []
+      if (importedCount > 0) messages.push(`${importedCount} new`)
+      if (updatedCount > 0) messages.push(`${updatedCount} updated`)
+      if (messages.length === 0) messages.push('No changes needed')
+      setMessage({ type: 'success', text: `Recipes: ${messages.join(', ')}` })
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to import recipes' })
     } finally {
@@ -255,7 +351,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       const colIndex = (name: string) => header.indexOf(name)
 
       let importedCount = 0
-      let skippedCount = 0
+      let updatedCount = 0
 
       for (let i = 1; i < lines.length; i++) {
         const values = parseCsvLine(lines[i])
@@ -268,12 +364,20 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         // Check if exists
         const { data: existing } = await supabase
           .from('staples')
-          .select('id')
+          .select('id, sector, is_default')
           .eq('name', name)
           .maybeSingle()
 
         if (existing) {
-          skippedCount++
+          // Check if anything changed
+          if (existing.sector !== sector || existing.is_default !== isDefault) {
+            const { error } = await supabase
+              .from('staples')
+              .update({ sector, is_default: isDefault })
+              .eq('id', existing.id)
+            if (error) throw error
+            updatedCount++
+          }
           continue
         }
 
@@ -285,7 +389,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         importedCount++
       }
 
-      setMessage({ type: 'success', text: `Imported ${importedCount} staples (${skippedCount} skipped - already exist)` })
+      const messages = []
+      if (importedCount > 0) messages.push(`${importedCount} new`)
+      if (updatedCount > 0) messages.push(`${updatedCount} updated`)
+      if (messages.length === 0) messages.push('No changes needed')
+      setMessage({ type: 'success', text: `Staples: ${messages.join(', ')}` })
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to import staples' })
     } finally {
