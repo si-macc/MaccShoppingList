@@ -21,7 +21,7 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
 
   // New ingredient form
   const [newIngredientName, setNewIngredientName] = useState('')
-  const [newIngredientSector, setNewIngredientSector] = useState('')
+  const [newIngredientSectorId, setNewIngredientSectorId] = useState('')
   const [newIngredientQuantity, setNewIngredientQuantity] = useState('')
   const [newIngredientUnit, setNewIngredientUnit] = useState('')
   
@@ -34,7 +34,7 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null)
   const [editQuantity, setEditQuantity] = useState('')
   const [editUnit, setEditUnit] = useState('')
-  const [editSector, setEditSector] = useState('')
+  const [editSectorId, setEditSectorId] = useState('')
 
   useEffect(() => {
     fetchIngredients()
@@ -49,8 +49,8 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
 
     if (!error && data) {
       setSectors(data)
-      if (data.length > 0 && !newIngredientSector) {
-        setNewIngredientSector(data[0].name)
+      if (data.length > 0 && !newIngredientSectorId) {
+        setNewIngredientSectorId(data[0].id)
       }
     }
   }
@@ -58,7 +58,14 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
   const fetchIngredients = async () => {
     const { data, error } = await supabase
       .from('ingredients')
-      .select('*')
+      .select(`
+        *,
+        sector:supermarket_sectors (
+          id,
+          name,
+          display_order
+        )
+      `)
       .order('name')
 
     if (!error && data) {
@@ -80,9 +87,16 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
         .from('ingredients')
         .insert({
           name: newIngredientName,
-          sector: newIngredientSector
+          sector_id: newIngredientSectorId
         })
-        .select()
+        .select(`
+          *,
+          sector:supermarket_sectors (
+            id,
+            name,
+            display_order
+          )
+        `)
         .single()
 
       if (error || !data) return
@@ -225,18 +239,21 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
     setEditingIngredientId(ing.id)
     setEditQuantity(ing.quantity || '')
     setEditUnit(ing.unit || '')
-    setEditSector(ing.ingredient?.sector || '')
+    setEditSectorId(ing.ingredient?.sector_id || '')
   }
 
   const handleSaveEditIngredient = async (id: string) => {
     const ingredient = ingredients.find(ing => ing.id === id)
-    if (ingredient?.ingredient_id && editSector !== ingredient.ingredient?.sector) {
-      // Update the ingredient's sector in the database
+    if (ingredient?.ingredient_id && editSectorId !== ingredient.ingredient?.sector_id) {
+      // Update the ingredient's sector_id in the database
       await supabase
         .from('ingredients')
-        .update({ sector: editSector })
+        .update({ sector_id: editSectorId })
         .eq('id', ingredient.ingredient_id)
     }
+
+    // Find the sector object for display
+    const newSector = sectors.find(s => s.id === editSectorId)
 
     setIngredients(ingredients.map(ing => 
       ing.id === id 
@@ -244,21 +261,21 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
             ...ing, 
             quantity: editQuantity || null, 
             unit: editUnit || null,
-            ingredient: ing.ingredient ? { ...ing.ingredient, sector: editSector } : undefined
+            ingredient: ing.ingredient ? { ...ing.ingredient, sector_id: editSectorId, sector: newSector } : undefined
           }
         : ing
     ))
     setEditingIngredientId(null)
     setEditQuantity('')
     setEditUnit('')
-    setEditSector('')
+    setEditSectorId('')
   }
 
   const handleCancelEditIngredient = () => {
     setEditingIngredientId(null)
     setEditQuantity('')
     setEditUnit('')
-    setEditSector('')
+    setEditSectorId('')
   }
 
   const handleSave = async () => {
@@ -484,12 +501,12 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                           />
                         </div>
                         <select
-                          value={editSector}
-                          onChange={(e) => setEditSector(e.target.value)}
+                          value={editSectorId}
+                          onChange={(e) => setEditSectorId(e.target.value)}
                           className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded focus:ring-2 focus:ring-primary-500"
                         >
-                          {sectors.map(sector => (
-                            <option key={sector.id} value={sector.name}>{sector.name}</option>
+                          {sectors.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
                           ))}
                         </select>
                         <div className="flex justify-end gap-2">
@@ -518,7 +535,7 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                             </span>
                           )}
                           <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                            • {ing.ingredient?.sector}
+                            • {ing.ingredient?.sector?.name || 'Other'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -559,7 +576,7 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                     .filter(ing => !ingredients.some(i => i.ingredient_id === ing.id))
                     .map(ing => (
                       <option key={ing.id} value={ing.id}>
-                        {ing.name} ({ing.sector})
+                        {ing.name} ({ing.sector?.name || 'Other'})
                       </option>
                     ))}
                 </select>
@@ -604,12 +621,12 @@ export default function RecipeEditModal({ recipe, isCreating, onClose }: RecipeE
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <select
-                  value={newIngredientSector}
-                  onChange={(e) => setNewIngredientSector(e.target.value)}
+                  value={newIngredientSectorId}
+                  onChange={(e) => setNewIngredientSectorId(e.target.value)}
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  {sectors.map(sector => (
-                    <option key={sector.id} value={sector.name}>{sector.name}</option>
+                  {sectors.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </div>

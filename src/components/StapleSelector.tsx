@@ -19,10 +19,11 @@ export default function StapleSelector({ staples, selectedIds, onToggle, onEdit,
   }
 
   const groupedBySector = staples.reduce((acc, staple) => {
-    if (!acc[staple.sector]) {
-      acc[staple.sector] = []
+    const sectorName = staple.sector?.name || 'Other'
+    if (!acc[sectorName]) {
+      acc[sectorName] = []
     }
-    acc[staple.sector].push(staple)
+    acc[sectorName].push(staple)
     return acc
   }, {} as Record<string, Staple[]>)
 

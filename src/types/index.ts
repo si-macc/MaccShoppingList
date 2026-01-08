@@ -10,7 +10,8 @@ export interface Recipe {
 export interface Ingredient {
   id: string
   name: string
-  sector: string
+  sector_id: string
+  sector?: SupermarketSector  // Joined data
   created_at: string
 }
 
@@ -30,7 +31,8 @@ export interface RecipeWithIngredients extends Recipe {
 export interface Staple {
   id: string
   name: string
-  sector: string
+  sector_id: string
+  sector?: SupermarketSector  // Joined data
   is_default: boolean
   created_at: string
   updated_at: string
@@ -49,7 +51,8 @@ export interface ShoppingListItem {
   ingredient_id: string | null
   staple_id: string | null
   item_name: string
-  sector: string
+  sector_id: string | null
+  sector?: SupermarketSector  // Joined data
   is_checked: boolean
   quantity: string | null
 }

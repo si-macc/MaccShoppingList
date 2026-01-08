@@ -81,7 +81,7 @@ export default function ShoppingListPage() {
   const fetchData = async () => {
     setLoading(true)
     
-    // Fetch recipes with ingredients
+    // Fetch recipes with ingredients (including sector join)
     const { data: recipesData } = await supabase
       .from('recipes')
       .select(`
@@ -95,16 +95,28 @@ export default function ShoppingListPage() {
           ingredient:ingredients (
             id,
             name,
-            sector
+            sector_id,
+            sector:supermarket_sectors (
+              id,
+              name,
+              display_order
+            )
           )
         )
       `)
       .order('name')
 
-    // Fetch staples
+    // Fetch staples with sector join
     const { data: staplesData } = await supabase
       .from('staples')
-      .select('*')
+      .select(`
+        *,
+        sector:supermarket_sectors (
+          id,
+          name,
+          display_order
+        )
+      `)
       .order('name')
 
     if (recipesData) {
@@ -158,7 +170,7 @@ export default function ShoppingListPage() {
     setEditingStaple({
       id: '',
       name: '',
-      sector: sectors.length > 0 ? sectors[0].name : 'Fresh Produce',
+      sector_id: sectors.length > 0 ? sectors[0].id : '',
       is_default: false,
       created_at: '',
       updated_at: ''
@@ -258,7 +270,8 @@ export default function ShoppingListPage() {
         if (ri.ingredient) {
           items.push({
             name: ri.ingredient.name,
-            sector: ri.ingredient.sector,
+            sector: ri.ingredient.sector?.name || 'Other',
+            sector_id: ri.ingredient.sector_id,
             quantity: ri.quantity,
             unit: ri.unit,
             from_recipe: recipe.name
@@ -272,7 +285,8 @@ export default function ShoppingListPage() {
     for (const staple of selectedStaplesData) {
       items.push({
         name: staple.name,
-        sector: staple.sector,
+        sector: staple.sector?.name || 'Other',
+        sector_id: staple.sector_id,
         quantity: null,
         unit: null,
         from_staple: true

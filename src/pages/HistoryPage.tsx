@@ -56,12 +56,19 @@ export default function HistoryPage() {
   const handleLoadList = async (list: ShoppingList) => {
     setLoadingListId(list.id)
     try {
-      // Fetch the shopping list items
+      // Fetch the shopping list items with sector information
       const { data: items, error } = await supabase
         .from('shopping_list_items')
-        .select('*')
+        .select(`
+          *,
+          sector:supermarket_sectors (
+            id,
+            name,
+            display_order
+          )
+        `)
         .eq('shopping_list_id', list.id)
-        .order('sector')
+        .order('id')
 
       if (error) throw error
 
@@ -71,6 +78,7 @@ export default function HistoryPage() {
         name: list.name,
         items: items.map(item => ({
           name: item.item_name,
+          sector_id: item.sector_id,
           sector: item.sector,
           quantity: item.quantity,
           is_checked: item.is_checked

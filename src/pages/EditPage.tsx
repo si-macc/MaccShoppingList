@@ -45,7 +45,11 @@ export default function EditPage() {
           ingredient:ingredients (
             id,
             name,
-            sector
+            sector_id,
+            sector:supermarket_sectors (
+              id,
+              name
+            )
           )
         )
       `)
@@ -61,13 +65,19 @@ export default function EditPage() {
     setLoading(true)
     const { data, error } = await supabase
       .from('staples')
-      .select('*')
-      .order('sector')
+      .select(`
+        *,
+        sector:supermarket_sectors (
+          id,
+          name,
+          display_order
+        )
+      `)
       .order('name')
 
     if (!error && data) {
       console.log('📦 Fetched Staples:', data)
-      console.log('📦 Staple sectors:', Array.from(new Set(data.map(s => s.sector))))
+      console.log('📦 Staple sectors:', Array.from(new Set(data.map(s => s.sector?.name))))
       setStaples(data)
     }
 
@@ -100,10 +110,12 @@ export default function EditPage() {
 
   const handleCreateStaple = () => {
     setIsCreatingStaple(true)
+    // Use the first sector as default, or empty if no sectors loaded yet
+    const defaultSectorId = sectors.find(s => s.name === 'Fresh Produce')?.id || sectors[0]?.id || ''
     setEditingStaple({
       id: '',
       name: '',
-      sector: 'Fresh Produce',
+      sector_id: defaultSectorId,
       is_default: false,
       created_at: '',
       updated_at: ''

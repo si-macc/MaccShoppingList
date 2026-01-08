@@ -29,7 +29,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             ingredient:ingredients (
               id,
               name,
-              sector
+              sector_id,
+              sector:supermarket_sectors (
+                id,
+                name
+              )
             )
           )
         `)
@@ -49,7 +53,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               escapeCsv(recipe.image_url || ''),
               escapeCsv(recipe.instructions || ''),
               escapeCsv(ri.ingredient?.name || ''),
-              escapeCsv(ri.ingredient?.sector || ''),
+              escapeCsv(ri.ingredient?.sector?.name || 'Other'),
               escapeCsv(ri.quantity || ''),
               escapeCsv(ri.unit || '')
             ].join(','))
@@ -81,7 +85,13 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     try {
       const { data: staples, error } = await supabase
         .from('staples')
-        .select('*')
+        .select(`
+          *,
+          sector:supermarket_sectors (
+            id,
+            name
+          )
+        `)
         .order('name')
 
       if (error) throw error
@@ -92,7 +102,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       for (const staple of staples || []) {
         rows.push([
           escapeCsv(staple.name),
-          escapeCsv(staple.sector),
+          escapeCsv(staple.sector?.name || 'Other'),
           staple.is_default ? 'true' : 'false'
         ].join(','))
       }
@@ -116,6 +126,24 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       
       if (lines.length < 2) {
         throw new Error('CSV file is empty or has no data rows')
+      }
+
+      // Fetch all sectors for lookup
+      const { data: sectors, error: sectorsError } = await supabase
+        .from('supermarket_sectors')
+        .select('id, name')
+      
+      if (sectorsError) throw sectorsError
+      
+      // Create a map of sector name (lowercase) to sector id
+      const sectorMap = new Map<string, string>()
+      const defaultSectorId = sectors?.find(s => s.name === 'Other')?.id || sectors?.[0]?.id
+      for (const s of sectors || []) {
+        sectorMap.set(s.name.toLowerCase(), s.id)
+      }
+      
+      const getSectorId = (sectorName: string): string => {
+        return sectorMap.get(sectorName.toLowerCase()) || defaultSectorId || ''
       }
 
       // Parse header
@@ -181,7 +209,11 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               ingredient:ingredients (
                 id,
                 name,
-                sector
+                sector_id,
+                sector:supermarket_sectors (
+                  id,
+                  name
+                )
               )
             )
           `)
@@ -204,7 +236,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
           // Get current ingredients from DB
           const currentIngredients = (existing.recipe_ingredients || []).map((ri: any) => ({
             name: ri.ingredient?.name || '',
-            sector: ri.ingredient?.sector || '',
+            sector: ri.ingredient?.sector?.name || 'Other',
             quantity: ri.quantity || null,
             unit: ri.unit || null,
             recipeIngredientId: ri.id,
@@ -234,26 +266,28 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
             // Add new ingredients from CSV
             for (const ing of recipe.ingredients) {
-              // Find or create ingredient, and update sector if changed
+              // Find or create ingredient, and update sector_id if changed
               let { data: ingredient } = await supabase
                 .from('ingredients')
-                .select('id, sector')
+                .select('id, sector_id')
                 .eq('name', ing.name)
                 .maybeSingle()
+
+              const targetSectorId = getSectorId(ing.sector)
 
               if (!ingredient) {
                 const { data: newIng, error: ingError } = await supabase
                   .from('ingredients')
-                  .insert({ name: ing.name, sector: ing.sector })
+                  .insert({ name: ing.name, sector_id: targetSectorId })
                   .select()
                   .single()
                 if (ingError) throw ingError
                 ingredient = newIng
-              } else if (ingredient.sector !== ing.sector) {
-                // Update sector if it changed
+              } else if (ingredient.sector_id !== targetSectorId) {
+                // Update sector_id if it changed
                 await supabase
                   .from('ingredients')
-                  .update({ sector: ing.sector })
+                  .update({ sector_id: targetSectorId })
                   .eq('id', ingredient.id)
               }
 
@@ -288,26 +322,28 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         // Add ingredients
         for (const ing of recipe.ingredients) {
-          // Find or create ingredient, and update sector if changed
+          // Find or create ingredient, and update sector_id if changed
           let { data: ingredient } = await supabase
             .from('ingredients')
-            .select('id, sector')
+            .select('id, sector_id')
             .eq('name', ing.name)
             .maybeSingle()
+
+          const targetSectorId = getSectorId(ing.sector)
 
           if (!ingredient) {
             const { data: newIng, error: ingError } = await supabase
               .from('ingredients')
-              .insert({ name: ing.name, sector: ing.sector })
+              .insert({ name: ing.name, sector_id: targetSectorId })
               .select()
               .single()
             if (ingError) throw ingError
             ingredient = newIng
-          } else if (ingredient.sector !== ing.sector) {
-            // Update sector if it changed
+          } else if (ingredient.sector_id !== targetSectorId) {
+            // Update sector_id if it changed
             await supabase
               .from('ingredients')
-              .update({ sector: ing.sector })
+              .update({ sector_id: targetSectorId })
               .eq('id', ingredient.id)
           }
 
@@ -352,6 +388,24 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         throw new Error('CSV file is empty or has no data rows')
       }
 
+      // Fetch all sectors for lookup
+      const { data: sectors, error: sectorsError } = await supabase
+        .from('supermarket_sectors')
+        .select('id, name')
+      
+      if (sectorsError) throw sectorsError
+      
+      // Create a map of sector name (lowercase) to sector id
+      const sectorMap = new Map<string, string>()
+      const defaultSectorId = sectors?.find(s => s.name === 'Other')?.id || sectors?.[0]?.id
+      for (const s of sectors || []) {
+        sectorMap.set(s.name.toLowerCase(), s.id)
+      }
+      
+      const getSectorId = (sectorName: string): string => {
+        return sectorMap.get(sectorName.toLowerCase()) || defaultSectorId || ''
+      }
+
       const header = parseCsvLine(lines[0])
       const requiredCols = ['name', 'sector']
       for (const col of requiredCols) {
@@ -368,24 +422,26 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       for (let i = 1; i < lines.length; i++) {
         const values = parseCsvLine(lines[i])
         const name = values[colIndex('name')]?.trim()
-        const sector = values[colIndex('sector')]?.trim()
+        const sectorName = values[colIndex('sector')]?.trim()
         const isDefault = values[colIndex('is_default')]?.trim().toLowerCase() === 'true'
 
-        if (!name || !sector) continue
+        if (!name || !sectorName) continue
+
+        const sectorId = getSectorId(sectorName)
 
         // Check if exists
         const { data: existing } = await supabase
           .from('staples')
-          .select('id, sector, is_default')
+          .select('id, sector_id, is_default')
           .eq('name', name)
           .maybeSingle()
 
         if (existing) {
           // Check if anything changed
-          if (existing.sector !== sector || existing.is_default !== isDefault) {
+          if (existing.sector_id !== sectorId || existing.is_default !== isDefault) {
             const { error } = await supabase
               .from('staples')
-              .update({ sector, is_default: isDefault })
+              .update({ sector_id: sectorId, is_default: isDefault })
               .eq('id', existing.id)
             if (error) throw error
             updatedCount++
@@ -395,7 +451,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         const { error } = await supabase
           .from('staples')
-          .insert({ name, sector, is_default: isDefault })
+          .insert({ name, sector_id: sectorId, is_default: isDefault })
 
         if (error) throw error
         importedCount++

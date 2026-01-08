@@ -16,14 +16,17 @@ export default function StaplesList({ staples, sectors, onEdit, onDelete }: Stap
   const sectorNames = sectors.map(s => s.name)
   console.log('🔍 Sector names from DB:', sectorNames)
   
+  // Group staples by their sector name (from joined sector object)
+  const getSectorName = (staple: Staple): string => staple.sector?.name || 'Other'
+  
   // Find staples that don't match any known sector (orphaned)
-  const orphanedStaples = staples.filter(staple => !sectorNames.includes(staple.sector))
+  const orphanedStaples = staples.filter(staple => !sectorNames.includes(getSectorName(staple)))
   console.log('🔍 Orphaned staples (sector not in DB):', orphanedStaples)
   
   // Create a combined list: known sectors + orphaned sectors
   const allSectorsToShow = [
     ...sectors,
-    ...Array.from(new Set(orphanedStaples.map(s => s.sector))).map((name, idx) => ({
+    ...Array.from(new Set(orphanedStaples.map(s => getSectorName(s)))).map((name, idx) => ({
       id: `orphaned-${idx}`,
       name
     }))
@@ -33,7 +36,7 @@ export default function StaplesList({ staples, sectors, onEdit, onDelete }: Stap
   return (
     <div className="space-y-6">
       {allSectorsToShow.map(sectorObj => {
-        const sectorStaples = staples.filter(s => s.sector === sectorObj.name)
+        const sectorStaples = staples.filter(s => getSectorName(s) === sectorObj.name)
         if (sectorStaples.length === 0) return null
         return (
           <div key={sectorObj.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">

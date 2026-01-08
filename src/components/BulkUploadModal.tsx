@@ -96,6 +96,24 @@ export default function BulkUploadModal({ type, onClose }: BulkUploadModalProps)
       throw new Error('CSV must have columns: name, ingredients, sector')
     }
 
+    // Fetch all sectors for lookup
+    const { data: sectors, error: sectorsError } = await supabase
+      .from('supermarket_sectors')
+      .select('id, name')
+    
+    if (sectorsError) throw sectorsError
+    
+    // Create a map of sector name (lowercase) to sector id
+    const sectorMap = new Map<string, string>()
+    const defaultSectorId = sectors?.find(s => s.name === 'Other')?.id || sectors?.[0]?.id
+    for (const s of sectors || []) {
+      sectorMap.set(s.name.toLowerCase(), s.id)
+    }
+    
+    const getSectorId = (sectorName: string): string => {
+      return sectorMap.get(sectorName.toLowerCase()) || defaultSectorId || ''
+    }
+
     const recipeMap = new Map<string, any>()
 
     for (const row of rows) {
@@ -118,7 +136,7 @@ export default function BulkUploadModal({ type, onClose }: BulkUploadModalProps)
 
       recipeMap.get(recipeName).ingredients.push({
         name: ingredientName,
-        sector,
+        sector_id: getSectorId(sector),
         quantity,
         unit
       })
@@ -149,7 +167,7 @@ export default function BulkUploadModal({ type, onClose }: BulkUploadModalProps)
         if (!ingredient) {
           const { data: newIng, error: ingError } = await supabase
             .from('ingredients')
-            .insert({ name: ing.name, sector: ing.sector })
+            .insert({ name: ing.name, sector_id: ing.sector_id })
             .select()
             .single()
 
@@ -178,9 +196,27 @@ export default function BulkUploadModal({ type, onClose }: BulkUploadModalProps)
       throw new Error('CSV must have columns: name, sector')
     }
 
+    // Fetch all sectors for lookup
+    const { data: sectors, error: sectorsError } = await supabase
+      .from('supermarket_sectors')
+      .select('id, name')
+    
+    if (sectorsError) throw sectorsError
+    
+    // Create a map of sector name (lowercase) to sector id
+    const sectorMap = new Map<string, string>()
+    const defaultSectorId = sectors?.find(s => s.name === 'Other')?.id || sectors?.[0]?.id
+    for (const s of sectors || []) {
+      sectorMap.set(s.name.toLowerCase(), s.id)
+    }
+    
+    const getSectorId = (sectorName: string): string => {
+      return sectorMap.get(sectorName.toLowerCase()) || defaultSectorId || ''
+    }
+
     const staples = rows.map(row => ({
       name: row[nameIdx],
-      sector: row[sectorIdx],
+      sector_id: getSectorId(row[sectorIdx]),
       is_default: isDefaultIdx !== -1 ? row[isDefaultIdx].toLowerCase() === 'true' : false
     }))
 
