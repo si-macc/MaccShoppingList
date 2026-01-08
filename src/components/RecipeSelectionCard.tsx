@@ -1,13 +1,26 @@
 import { RecipeWithIngredients } from '../types'
+import { PencilIcon, TrashIcon } from './Icons'
 
 interface RecipeSelectionCardProps {
   recipe: RecipeWithIngredients
   isSelected: boolean
   onToggle: () => void
+  onEdit?: (recipe: RecipeWithIngredients) => void
+  onDelete?: (id: string) => void
 }
 
-export default function RecipeSelectionCard({ recipe, isSelected, onToggle }: RecipeSelectionCardProps) {
-  const placeholderImage = 'https://via.placeholder.com/400x300/22c55e/ffffff?text=Recipe'
+export default function RecipeSelectionCard({ recipe, isSelected, onToggle, onEdit, onDelete }: RecipeSelectionCardProps) {
+  const placeholderImage = 'https://placehold.co/400x300/22c55e/ffffff?text=Recipe'
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onEdit?.(recipe)
+  }
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onDelete?.(recipe.id)
+  }
 
   return (
     <div
@@ -28,6 +41,29 @@ export default function RecipeSelectionCard({ recipe, isSelected, onToggle }: Re
         {isSelected && (
           <div className="absolute top-2 right-2 bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
             ✓
+          </div>
+        )}
+        {/* Edit/Delete buttons */}
+        {(onEdit || onDelete) && (
+          <div className="absolute top-2 left-2 flex space-x-1">
+            {onEdit && (
+              <button
+                onClick={handleEdit}
+                className="p-1.5 bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 rounded-full shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                title="Edit recipe"
+              >
+                <PencilIcon className="w-4 h-4" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="p-1.5 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 rounded-full shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                title="Delete recipe"
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
