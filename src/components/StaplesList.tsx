@@ -3,35 +3,30 @@ import { PencilIcon, TrashIcon } from './Icons'
 
 interface StaplesListProps {
   staples: Staple[]
-  sectors: { id: string; name: string }[]
+  sectors: { id: string; name: string; display_order?: number }[]
   onEdit: (staple: Staple) => void
   onDelete: (id: string) => void
 }
 
 export default function StaplesList({ staples, sectors, onEdit, onDelete }: StaplesListProps) {
-  console.log('🔍 StaplesList received sectors:', sectors)
-  console.log('🔍 StaplesList received staples:', staples)
-  
   // Get sector names from the sectors list
   const sectorNames = sectors.map(s => s.name)
-  console.log('🔍 Sector names from DB:', sectorNames)
   
   // Group staples by their sector name (from joined sector object)
   const getSectorName = (staple: Staple): string => staple.sector?.name || 'Other'
   
   // Find staples that don't match any known sector (orphaned)
   const orphanedStaples = staples.filter(staple => !sectorNames.includes(getSectorName(staple)))
-  console.log('🔍 Orphaned staples (sector not in DB):', orphanedStaples)
   
-  // Create a combined list: known sectors + orphaned sectors
+  // Create a combined list: known sectors + orphaned sectors, sorted by display_order
   const allSectorsToShow = [
-    ...sectors,
+    ...sectors.map(s => ({ ...s, display_order: s.display_order ?? 999 })),
     ...Array.from(new Set(orphanedStaples.map(s => getSectorName(s)))).map((name, idx) => ({
       id: `orphaned-${idx}`,
-      name
+      name,
+      display_order: 1000 + idx
     }))
-  ]
-  console.log('🔍 All sectors to show (DB + orphaned):', allSectorsToShow)
+  ].sort((a, b) => a.display_order - b.display_order)
 
   return (
     <div className="space-y-6">

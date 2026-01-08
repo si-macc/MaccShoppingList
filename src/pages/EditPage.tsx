@@ -13,7 +13,7 @@ export default function EditPage() {
   const [activeTab, setActiveTab] = useState<'recipes' | 'staples'>('recipes')
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>([])
   const [staples, setStaples] = useState<Staple[]>([])
-  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
+  const [sectors, setSectors] = useState<{ id: string; name: string; display_order: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [editingRecipe, setEditingRecipe] = useState<RecipeWithIngredients | null>(null)
   const [editingStaple, setEditingStaple] = useState<Staple | null>(null)
@@ -81,11 +81,11 @@ export default function EditPage() {
       setStaples(data)
     }
 
-    // Fetch sectors
+    // Fetch sectors with display_order for proper sorting
     const { data: sectorsData } = await supabase
       .from('supermarket_sectors')
-      .select('id, name')
-      .order('name')
+      .select('id, name, display_order')
+      .order('display_order')
 
     if (sectorsData) {
       console.log('🏪 Fetched Sectors from DB:', sectorsData)
