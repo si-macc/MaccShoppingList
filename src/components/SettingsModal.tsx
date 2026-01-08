@@ -234,10 +234,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
             // Add new ingredients from CSV
             for (const ing of recipe.ingredients) {
-              // Find or create ingredient
+              // Find or create ingredient, and update sector if changed
               let { data: ingredient } = await supabase
                 .from('ingredients')
-                .select('id')
+                .select('id, sector')
                 .eq('name', ing.name)
                 .maybeSingle()
 
@@ -249,6 +249,12 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   .single()
                 if (ingError) throw ingError
                 ingredient = newIng
+              } else if (ingredient.sector !== ing.sector) {
+                // Update sector if it changed
+                await supabase
+                  .from('ingredients')
+                  .update({ sector: ing.sector })
+                  .eq('id', ingredient.id)
               }
 
               if (!ingredient) continue
@@ -282,10 +288,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
 
         // Add ingredients
         for (const ing of recipe.ingredients) {
-          // Find or create ingredient
+          // Find or create ingredient, and update sector if changed
           let { data: ingredient } = await supabase
             .from('ingredients')
-            .select('id')
+            .select('id, sector')
             .eq('name', ing.name)
             .maybeSingle()
 
@@ -297,6 +303,12 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               .single()
             if (ingError) throw ingError
             ingredient = newIng
+          } else if (ingredient.sector !== ing.sector) {
+            // Update sector if it changed
+            await supabase
+              .from('ingredients')
+              .update({ sector: ing.sector })
+              .eq('id', ingredient.id)
           }
 
           if (!ingredient) continue
