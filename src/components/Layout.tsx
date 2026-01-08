@@ -1,8 +1,10 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useOffline } from '../contexts/OfflineContext'
 import { useTheme } from '../contexts/ThemeContext'
+import SettingsModal from './SettingsModal'
+import { CogIcon } from './Icons'
 
 interface LayoutProps {
   children: ReactNode
@@ -12,6 +14,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { isOnline } = useOffline()
   const { theme, toggleTheme } = useTheme()
+  const [showSettings, setShowSettings] = useState(false)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -47,16 +50,6 @@ export default function Layout({ children }: LayoutProps) {
                 Shopping List
               </Link>
               <Link
-                to="/edit"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                  isActive('/edit') 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' 
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                Edit
-              </Link>
-              <Link
                 to="/history"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition ${
                   isActive('/history') 
@@ -69,6 +62,15 @@ export default function Layout({ children }: LayoutProps) {
             </nav>
 
             <div className="flex items-center space-x-4">
+              {/* Settings Button */}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                aria-label="Settings"
+              >
+                <CogIcon className="w-5 h-5" />
+              </button>
+
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -108,14 +110,6 @@ export default function Layout({ children }: LayoutProps) {
               Shopping
             </Link>
             <Link
-              to="/edit"
-              className={`flex-1 text-center px-3 py-2 text-sm font-medium ${
-                isActive('/edit') ? 'text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/50' : 'text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              Edit
-            </Link>
-            <Link
               to="/history"
               className={`flex-1 text-center px-3 py-2 text-sm font-medium ${
                 isActive('/history') ? 'text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/50' : 'text-gray-600 dark:text-gray-400'
@@ -131,6 +125,11 @@ export default function Layout({ children }: LayoutProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
     </div>
   )
 }
