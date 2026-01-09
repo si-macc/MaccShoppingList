@@ -112,3 +112,17 @@ export function ArrowLeftIcon({ className = "w-5 h-5" }: IconProps) {
     </svg>
   )
 }
+
+export function ForkKnifePlateIcon({ className = "w-5 h-5" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      {/* Plate (circle) */}
+      <circle cx="12" cy="14" r="7" />
+      {/* Fork (left side) */}
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 3v6c0 1 .5 2 1.5 2S7 10 7 9V3M5.5 3v5" />
+      {/* Knife (right side) */}
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 3v8c0 .5-.5 1-1 1h-.5c-.5 0-1-.5-1-1V3c0-.5.5-1 1.25-1S20 2.5 20 3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 12v9" />
+    </svg>
+  )
+}

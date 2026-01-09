@@ -1,5 +1,5 @@
 import { RecipeWithIngredients } from '../types'
-import { PencilIcon, TrashIcon } from './Icons'
+import { PencilIcon, TrashIcon, ForkKnifePlateIcon } from './Icons'
 
 interface RecipeCardProps {
   recipe: RecipeWithIngredients
@@ -8,17 +8,21 @@ interface RecipeCardProps {
 }
 
 export default function RecipeCard({ recipe, onEdit, onDelete }: RecipeCardProps) {
-  const placeholderImage = 'https://via.placeholder.com/400x300/22c55e/ffffff?text=Recipe'
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-200 animate-fade-in hover:scale-[1.02]">
       {/* Image */}
       <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-        <img
-          src={recipe.image_url || placeholderImage}
-          alt={recipe.name}
-          className="w-full h-full object-cover"
-        />
+        {recipe.image_url ? (
+          <img
+            src={recipe.image_url}
+            alt={recipe.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-primary-500 flex items-center justify-center">
+            <ForkKnifePlateIcon className="w-16 h-16 text-white" />
+          </div>
+        )}
         <div className="absolute top-2 right-2 flex space-x-2">
           <button
             onClick={() => onEdit(recipe)}
