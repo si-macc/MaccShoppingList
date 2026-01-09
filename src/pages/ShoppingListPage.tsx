@@ -47,26 +47,29 @@ export default function ShoppingListPage() {
   // Check for loaded list from history
   useEffect(() => {
     if (loadedList) {
-      // Convert loaded list to shopping list format
-      const grouped = loadedList.items.reduce((acc, item) => {
-        const sectorName = item.sector || 'Other'
+      // Convert loaded list to shopping list format with db_ids
+      const itemsWithIds = loadedList.items.map(item => ({
+        db_id: item.db_id,
+        name: item.name,
+        sector: item.sector || 'Other',
+        sector_id: item.sector_id,
+        quantity: item.quantity,
+        is_checked: item.is_checked
+      }))
+
+      const grouped = itemsWithIds.reduce((acc, item) => {
+        const sectorName = item.sector
         if (!acc[sectorName]) {
           acc[sectorName] = []
         }
-        acc[sectorName].push({
-          name: item.name,
-          sector: sectorName,
-          sector_id: item.sector_id,
-          quantity: item.quantity,
-          is_checked: item.is_checked
-        })
+        acc[sectorName].push(item)
         return acc
       }, {} as Record<string, any[]>)
 
       setShoppingList({
         id: loadedList.id,
         name: loadedList.name,
-        items: loadedList.items,
+        items: itemsWithIds,
         grouped,
         createdAt: new Date().toISOString(),
         isLoaded: true
@@ -304,11 +307,71 @@ export default function ShoppingListPage() {
       return acc
     }, {} as Record<string, any[]>)
 
-    setShoppingList({
-      items,
-      grouped,
-      createdAt: new Date().toISOString()
-    })
+    // Auto-save to database
+    const listName = `Shopping List - ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+    
+    try {
+      // Create shopping list
+      const { data: savedList, error: listError } = await supabase
+        .from('shopping_lists')
+        .insert({
+          name: listName,
+          completed_at: null
+        })
+        .select()
+        .single()
+
+      if (listError) throw listError
+
+      // Insert all items and get their IDs back
+      const itemsToInsert = items.map((item: any) => ({
+        shopping_list_id: savedList.id,
+        item_name: item.name,
+        sector_id: item.sector_id,
+        quantity: item.quantity,
+        is_checked: false
+      }))
+
+      const { data: savedItems, error: itemsError } = await supabase
+        .from('shopping_list_items')
+        .insert(itemsToInsert)
+        .select()
+
+      if (itemsError) throw itemsError
+
+      // Map database IDs back to items
+      const itemsWithIds = items.map((item, index) => ({
+        ...item,
+        db_id: savedItems[index]?.id,
+        is_checked: false
+      }))
+
+      // Update grouped with db_ids
+      const groupedWithIds = itemsWithIds.reduce((acc, item) => {
+        if (!acc[item.sector]) {
+          acc[item.sector] = []
+        }
+        acc[item.sector].push(item)
+        return acc
+      }, {} as Record<string, any[]>)
+
+      setShoppingList({
+        id: savedList.id,
+        name: listName,
+        items: itemsWithIds,
+        grouped: groupedWithIds,
+        createdAt: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('Error auto-saving list:', error)
+      // Still show the list even if save failed
+      setShoppingList({
+        items,
+        grouped,
+        createdAt: new Date().toISOString()
+      })
+    }
+
     setViewMode('list')
   }
 

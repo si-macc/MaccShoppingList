@@ -77,6 +77,7 @@ export default function HistoryPage() {
         id: list.id,
         name: list.name,
         items: items.map(item => ({
+          db_id: item.id,
           name: item.item_name,
           sector_id: item.sector_id,
           sector: item.sector?.name || 'Other',

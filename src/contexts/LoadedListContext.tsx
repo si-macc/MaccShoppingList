@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 
 interface LoadedListItem {
+  db_id?: string
   name: string
   sector: string
   sector_id?: string | null
