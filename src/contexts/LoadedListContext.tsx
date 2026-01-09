@@ -3,6 +3,7 @@ import { createContext, useContext, useState, ReactNode } from 'react'
 interface LoadedListItem {
   name: string
   sector: string
+  sector_id?: string | null
   quantity: string | null
   is_checked: boolean
 }
