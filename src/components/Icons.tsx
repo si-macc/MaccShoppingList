@@ -114,15 +114,10 @@ export function ArrowLeftIcon({ className = "w-5 h-5" }: IconProps) {
 }
 
 export function ForkKnifePlateIcon({ className = "w-5 h-5" }: IconProps) {
+  // Based on FontAwesome utensils icon
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      {/* Plate (circle) */}
-      <circle cx="12" cy="14" r="7" />
-      {/* Fork (left side) */}
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 3v6c0 1 .5 2 1.5 2S7 10 7 9V3M5.5 3v5" />
-      {/* Knife (right side) */}
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20 3v8c0 .5-.5 1-1 1h-.5c-.5 0-1-.5-1-1V3c0-.5.5-1 1.25-1S20 2.5 20 3z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 12v9" />
+    <svg className={className} viewBox="0 0 448 512" fill="currentColor">
+      <path d="M416 0C400 0 288 32 288 176V288c0 35.3 28.7 64 64 64h32V480c0 17.7 14.3 32 32 32s32-14.3 32-32V352 240 32c0-17.7-14.3-32-32-32zM64 16C64 7.8 57.9 1 49.7 .1S34.2 4.6 32.4 12.5L2.1 148.8C.7 155.1 0 161.5 0 167.9c0 45.9 35.1 83.6 80 87.7V480c0 17.7 14.3 32 32 32s32-14.3 32-32V255.6c44.9-4.1 80-41.8 80-87.7c0-6.4-.7-12.8-2.1-19.1L191.6 12.5c-1.8-8-9-13.3-17.3-12.4S160 7.8 160 16V150.2c0 5.4-4.4 9.8-9.8 9.8c-5.1 0-9.3-3.9-9.8-9L127.9 14.6C127.2 6.3 120.3 0 112 0s-15.2 6.3-15.9 14.6L83.7 151c-.5 5.1-4.7 9-9.8 9c-5.4 0-9.8-4.4-9.8-9.8V16z"/>
     </svg>
   )
 }
