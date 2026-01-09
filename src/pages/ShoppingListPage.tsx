@@ -49,12 +49,14 @@ export default function ShoppingListPage() {
     if (loadedList) {
       // Convert loaded list to shopping list format
       const grouped = loadedList.items.reduce((acc, item) => {
-        if (!acc[item.sector]) {
-          acc[item.sector] = []
+        const sectorName = item.sector || 'Other'
+        if (!acc[sectorName]) {
+          acc[sectorName] = []
         }
-        acc[item.sector].push({
+        acc[sectorName].push({
           name: item.name,
-          sector: item.sector,
+          sector: sectorName,
+          sector_id: item.sector_id,
           quantity: item.quantity,
           is_checked: item.is_checked
         })

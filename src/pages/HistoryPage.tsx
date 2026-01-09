@@ -79,7 +79,7 @@ export default function HistoryPage() {
         items: items.map(item => ({
           name: item.item_name,
           sector_id: item.sector_id,
-          sector: item.sector,
+          sector: item.sector?.name || 'Other',
           quantity: item.quantity,
           is_checked: item.is_checked
         }))
