@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { SupermarketSector } from '../types'
 import { SaveIcon, ShareIcon, ArrowLeftIcon, PlusIcon } from './Icons'
@@ -10,16 +10,68 @@ interface ShoppingListGridProps {
 }
 
 export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: ShoppingListGridProps) {
-  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set())
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [listName, setListName] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [sectors, setSectors] = useState<SupermarketSector[]>([])
+  const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     fetchSectors()
+    // Initialize checked items from database state
+    initializeCheckedItems()
   }, [])
+
+  // Auto-save every minute
+  useEffect(() => {
+    if (shoppingList?.id) {
+      autoSaveIntervalRef.current = setInterval(() => {
+        saveCheckedState()
+      }, 60000) // 60 seconds
+
+      return () => {
+        if (autoSaveIntervalRef.current) {
+          clearInterval(autoSaveIntervalRef.current)
+        }
+      }
+    }
+  }, [shoppingList?.id, checkedItems])
+
+  const initializeCheckedItems = () => {
+    // Initialize from items that have is_checked = true
+    const checked = new Set<string>()
+    shoppingList.items.forEach((item: any) => {
+      if (item.is_checked && item.db_id) {
+        checked.add(item.db_id)
+      }
+    })
+    setCheckedItems(checked)
+  }
+
+  const saveCheckedState = useCallback(async () => {
+    if (!shoppingList?.id) return
+
+    try {
+      // Update all items' checked state in database
+      const updates = shoppingList.items
+        .filter((item: any) => item.db_id)
+        .map((item: any) => ({
+          id: item.db_id,
+          is_checked: checkedItems.has(item.db_id)
+        }))
+
+      for (const update of updates) {
+        await supabase
+          .from('shopping_list_items')
+          .update({ is_checked: update.is_checked })
+          .eq('id', update.id)
+      }
+    } catch (error) {
+      console.error('Error saving checked state:', error)
+    }
+  }, [shoppingList?.id, shoppingList?.items, checkedItems])
 
   const fetchSectors = async () => {
     const { data, error } = await supabase
@@ -46,14 +98,28 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
     return layout.filter(row => row && row.length > 0)
   }
 
-  const toggleItem = (index: number) => {
+  const toggleItem = async (dbId: string) => {
     const newSet = new Set(checkedItems)
-    if (newSet.has(index)) {
-      newSet.delete(index)
+    const isNowChecked = !newSet.has(dbId)
+    
+    if (newSet.has(dbId)) {
+      newSet.delete(dbId)
     } else {
-      newSet.add(index)
+      newSet.add(dbId)
     }
     setCheckedItems(newSet)
+
+    // Save to database immediately
+    if (dbId) {
+      try {
+        await supabase
+          .from('shopping_list_items')
+          .update({ is_checked: isNowChecked })
+          .eq('id', dbId)
+      } catch (error) {
+        console.error('Error updating checked state:', error)
+      }
+    }
   }
 
   const handleSaveList = async () => {
@@ -215,12 +281,11 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
                       </div>
                     ) : (
                       items.map((item: any, idx: number) => {
-                        const globalIndex = shoppingList.items.indexOf(item)
-                        const isChecked = checkedItems.has(globalIndex)
+                        const isChecked = item.db_id ? checkedItems.has(item.db_id) : false
 
                         return (
                           <label
-                            key={idx}
+                            key={item.db_id || idx}
                             className={`px-4 py-3 flex items-start space-x-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition ${
                               isChecked ? 'bg-gray-50 dark:bg-gray-700/50 opacity-50' : ''
                             }`}
@@ -228,7 +293,8 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
                             <input
                               type="checkbox"
                               checked={isChecked}
-                              onChange={() => toggleItem(globalIndex)}
+                              onChange={() => item.db_id && toggleItem(item.db_id)}
+                              disabled={!item.db_id}
                               className="mt-1 w-5 h-5 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:bg-gray-700"
                             />
                             <div className="flex-1">
@@ -265,13 +331,33 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
         </div>
         <div className="flex space-x-2">
           <button
-            onClick={() => setCheckedItems(new Set())}
+            onClick={async () => {
+              setCheckedItems(new Set())
+              // Update all items in database
+              const dbIds = shoppingList.items.filter((item: any) => item.db_id).map((item: any) => item.db_id)
+              if (dbIds.length > 0) {
+                await supabase
+                  .from('shopping_list_items')
+                  .update({ is_checked: false })
+                  .in('id', dbIds)
+              }
+            }}
             className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           >
             Clear All
           </button>
           <button
-            onClick={() => setCheckedItems(new Set(shoppingList.items.map((_: any, i: number) => i)))}
+            onClick={async () => {
+              const dbIds = shoppingList.items.filter((item: any) => item.db_id).map((item: any) => item.db_id)
+              setCheckedItems(new Set(dbIds))
+              // Update all items in database
+              if (dbIds.length > 0) {
+                await supabase
+                  .from('shopping_list_items')
+                  .update({ is_checked: true })
+                  .in('id', dbIds)
+              }
+            }}
             className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           >
             Check All
