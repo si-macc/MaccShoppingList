@@ -1,5 +1,5 @@
 import { RecipeWithIngredients } from '../types'
-import { PencilIcon, TrashIcon } from './Icons'
+import { PencilIcon, TrashIcon, ForkKnifePlateIcon } from './Icons'
 
 interface RecipeSelectionCardProps {
   recipe: RecipeWithIngredients
@@ -10,8 +10,6 @@ interface RecipeSelectionCardProps {
 }
 
 export default function RecipeSelectionCard({ recipe, isSelected, onToggle, onEdit, onDelete }: RecipeSelectionCardProps) {
-  const placeholderImage = 'https://placehold.co/400x300/22c55e/ffffff?text=Recipe'
-
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
     onEdit?.(recipe)
@@ -33,11 +31,17 @@ export default function RecipeSelectionCard({ recipe, isSelected, onToggle, onEd
     >
       {/* Image */}
       <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-        <img
-          src={recipe.image_url || placeholderImage}
-          alt={recipe.name}
-          className="w-full h-full object-cover"
-        />
+        {recipe.image_url ? (
+          <img
+            src={recipe.image_url}
+            alt={recipe.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-primary-500 flex items-center justify-center">
+            <ForkKnifePlateIcon className="w-16 h-16 text-white" />
+          </div>
+        )}
         {isSelected && (
           <div className="absolute top-2 right-2 bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
             ✓
