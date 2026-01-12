@@ -266,14 +266,14 @@ export default function ShoppingListPage() {
   }
 
   const handleGenerateList = async () => {
-    const items: any[] = []
+    const rawItems: any[] = []
 
     // Add ingredients from selected recipes
     const selectedRecipes = recipes.filter(r => selectedRecipeIds.has(r.id))
     for (const recipe of selectedRecipes) {
       for (const ri of recipe.recipe_ingredients) {
         if (ri.ingredient) {
-          items.push({
+          rawItems.push({
             name: ri.ingredient.name,
             sector: ri.ingredient.sector?.name || 'Other',
             sector_id: ri.ingredient.sector_id,
@@ -288,7 +288,7 @@ export default function ShoppingListPage() {
     // Add selected staples
     const selectedStaplesData = staples.filter(s => selectedStapleIds.has(s.id))
     for (const staple of selectedStaplesData) {
-      items.push({
+      rawItems.push({
         name: staple.name,
         sector: staple.sector?.name || 'Other',
         sector_id: staple.sector_id,
@@ -297,6 +297,62 @@ export default function ShoppingListPage() {
         from_staple: true
       })
     }
+
+    // Consolidate duplicate items by name (case-insensitive)
+    const consolidatedMap = new Map<string, any>()
+    for (const item of rawItems) {
+      const key = item.name.toLowerCase().trim()
+      if (consolidatedMap.has(key)) {
+        const existing = consolidatedMap.get(key)
+        // Add this requirement to the list
+        const requirement: any = {}
+        if (item.quantity) {
+          requirement.quantity = item.quantity
+          requirement.unit = item.unit || ''
+        }
+        if (item.from_recipe) {
+          requirement.source = item.from_recipe
+        } else if (item.from_staple) {
+          requirement.source = 'Staple'
+        }
+        // Only add if there's meaningful info and not a duplicate
+        if (requirement.quantity || requirement.source) {
+          const isDuplicate = existing.requirements.some((r: any) => 
+            r.quantity === requirement.quantity && 
+            r.unit === requirement.unit && 
+            r.source === requirement.source
+          )
+          if (!isDuplicate) {
+            existing.requirements.push(requirement)
+          }
+        }
+      } else {
+        // First occurrence - create new consolidated item
+        const requirements: any[] = []
+        const requirement: any = {}
+        if (item.quantity) {
+          requirement.quantity = item.quantity
+          requirement.unit = item.unit || ''
+        }
+        if (item.from_recipe) {
+          requirement.source = item.from_recipe
+        } else if (item.from_staple) {
+          requirement.source = 'Staple'
+        }
+        if (requirement.quantity || requirement.source) {
+          requirements.push(requirement)
+        }
+        
+        consolidatedMap.set(key, {
+          name: item.name,
+          sector: item.sector,
+          sector_id: item.sector_id,
+          requirements
+        })
+      }
+    }
+
+    const items = Array.from(consolidatedMap.values())
 
     // Group by sector
     const grouped = items.reduce((acc, item) => {
@@ -324,13 +380,26 @@ export default function ShoppingListPage() {
       if (listError) throw listError
 
       // Insert all items and get their IDs back
-      const itemsToInsert = items.map((item: any) => ({
-        shopping_list_id: savedList.id,
-        item_name: item.name,
-        sector_id: item.sector_id,
-        quantity: item.quantity,
-        is_checked: false
-      }))
+      // Format requirements as a readable string for storage
+      const itemsToInsert = items.map((item: any) => {
+        const quantityStr = item.requirements
+          .map((r: any) => {
+            const parts = []
+            if (r.quantity) parts.push(`${r.quantity}${r.unit || ''}`)
+            if (r.source) parts.push(`(${r.source})`)
+            return parts.join(' ')
+          })
+          .filter(Boolean)
+          .join(', ') || null
+        
+        return {
+          shopping_list_id: savedList.id,
+          item_name: item.name,
+          sector_id: item.sector_id,
+          quantity: quantityStr,
+          is_checked: false
+        }
+      })
 
       const { data: savedItems, error: itemsError } = await supabase
         .from('shopping_list_items')
