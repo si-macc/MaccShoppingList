@@ -196,8 +196,20 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
           text += `📍 ${sector}\n`
           items.forEach((item: any) => {
             text += `  ☐ ${item.name}`
-            if (item.quantity) {
-              text += ` (${item.quantity}${item.unit || ''})`
+            // Handle consolidated requirements
+            if (item.requirements && item.requirements.length > 0) {
+              const reqStrs = item.requirements.map((req: any) => {
+                const parts = []
+                if (req.quantity) parts.push(`${req.quantity}${req.unit || ''}`)
+                if (req.source) parts.push(`from ${req.source}`)
+                return parts.join(' ')
+              }).filter(Boolean)
+              if (reqStrs.length > 0) {
+                text += `: ${reqStrs.join(', ')}`
+              }
+            } else if (item.quantity) {
+              // Fallback for loaded lists
+              text += ` (${item.quantity})`
             }
             text += '\n'
           })
@@ -301,14 +313,25 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
                               <div className={`font-medium ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
                                 {item.name}
                               </div>
-                              {item.quantity && (
-                                <div className="text-sm text-gray-600 dark:text-gray-400">
-                                  {item.quantity}{item.unit || ''}
+                              {/* Display consolidated requirements list */}
+                              {item.requirements && item.requirements.length > 0 && (
+                                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                  {item.requirements.map((req: any, reqIdx: number) => (
+                                    <div key={reqIdx} className="flex items-center gap-1">
+                                      <span className="text-gray-400">•</span>
+                                      <span>
+                                        {req.quantity && `${req.quantity}${req.unit || ''}`}
+                                        {req.quantity && req.source && ' '}
+                                        {req.source && <span className="text-xs text-gray-500 dark:text-gray-500">({req.source})</span>}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
-                              {item.from_recipe && (
-                                <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                  from {item.from_recipe}
+                              {/* Fallback for loaded lists that have quantity as string */}
+                              {!item.requirements && item.quantity && (
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                  {item.quantity}
                                 </div>
                               )}
                             </div>
