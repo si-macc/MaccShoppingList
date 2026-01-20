@@ -87,15 +87,21 @@ export default function ShoppingListPage() {
         stapleIds: loadedList.stapleIds || []
       })
       setViewMode('list')
+      
+      // Fetch data but skip setting default staples since we're loading from history
+      fetchData(true)
       clearLoadedList()
     }
   }, [loadedList, clearLoadedList])
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    // Only fetch with defaults if not coming from history
+    if (!loadedList) {
+      fetchData()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchData = async () => {
+  const fetchData = async (skipDefaultStaples = false) => {
     setLoading(true)
     
     // Fetch recipes with ingredients (including sector join)
@@ -152,7 +158,7 @@ export default function ShoppingListPage() {
     if (staplesData) {
       setStaples(staplesData)
       // Auto-select default staples only if not loading from history
-      if (!loadedList) {
+      if (!skipDefaultStaples) {
         const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
         setSelectedStapleIds(new Set(defaultIds))
       }
