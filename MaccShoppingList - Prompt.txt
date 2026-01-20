@@ -1,0 +1,54 @@
+Meal Planner
+
+- Intro
+You are an expert in full stack developing apps with React and Vite from end and Supabase backend/database. 
+
+- Brief
+The brief is to create an app to assist in the weekly evening meal planning and food shopping. There will be a database of meals and ingredients. The meals will have a list of ingredients, a picture, and a recipe (though the recipe isn't critical). The ingredient will have a name and sector where it's found in the supermarket. There will be the option to select a number of recipies to the meal planner where, when finished, the user will be presented with a shopping list which is organised to the different sectors of a particular supermarket layout. The user will also be able to edit and add recipies with the option to bulk upload from a formatted spreadsheet. There is also a section to manage 'staples' which are general items that are bought weekly (eg. milk) which aren't related to a recipe. These staples can be added, edited and selected to add to the shopping list. There is also a 'default' option for regular items, these will be auto selected and placed at the top of the list and can be deselected on the shopping list page if not required that shopping trip.
+
+- Detailed Specification
+Shopping List Page
+There will be a tabbed menu at the top with 'Recipes' and 'Staples' at the top. The following user journey will happen:
+- On recipes tab the user is presented with a page that contains a grid of recipes to select with a summary of the ingredients underneath
+- User selects each recipe they would like to generate a shopping list for
+- There will be an edit icon on the recipe card where a popup will be display and the user can easily edit the recipe. 
+- On the staples tab there is a list of staples in the database where the user can select the ones (or deselect default items) they want
+- There will be an edit icon on the staple where a popup will be display and the user can easily edit the staple. 
+- There's a call to action button in the corner where the shopping list is then generated
+- The user is then presented with a list of items to purchase. The items are groups into the different sectors of the supermarket and presented in a grid as if the user was viewing the supermarket isles from above. For example, if the supermarket has 3 isles split into 2 length then there would be a 2 row, 3 column grid. 
+
+Edit Page
+Here there will be the option to edit/add/delete the recipies as well as to edit the staples list. This page will have the option to bulk upload a formatted spreadsheet for either the recipes or the staples to make onboarding/bulk editing easier.
+
+- General notes
+This isn't an exhaustive list of all functions but a start to hopefully build on.
+Start by planning out how this will all work with the architecture and design before proceeding with the code writing. 
+The UI will be of a modern and slick design that is mobile first but should also work with desktop browsers/tablets too.
+The app is designed to be web app only, not a mobile or tablet specific app.
+Make sure to create a .md file as context for any LLM to understand the project. 
+Break down each part into different mini projects so you are not trying to do it all in one go.
+If you have any queries, concerns or questions about the above ask before proceeding. 
+
+
+- Technologies
+React
+Vite
+Tailwind
+REST APIs
+Supabase
+PostgreSQL
+Typescript
+
+
+
+
+  - Authentication: Should users need to create accounts and log in? Or should this be a single-user app where anyone accessing it sees the same data? *There should be a single login for the app but only a single user
+     - Supermarket Layout: Should the supermarket sector/aisle layout be configurable by the user, or should we start with a default layout? You mentioned a 2x3 grid example - should users be able to customize this? *just start with a default layout for now of the 2x3 grid
+     - Recipe quantities: Should recipes track serving sizes and allow users to adjust quantities (e.g., "this recipe serves 4, but I need it for 6")? Or keep it simple with fixed ingredient lists? *keep simple for now
+     - Shopping list features: Should users be able to:
+       - Check off items as they shop? *yes
+       - Save/archive previous shopping lists? *yes
+       - Share shopping lists? *yes, via whatsapp or email
+     - Spreadsheet format: Do you have a preferred format for the bulk upload spreadsheet (CSV, Excel)? What columns should it include? *not at the moment just make an educated guess
+     - Recipe images: Should users be able to upload their own recipe images, or would you like integration with an image service, or just optional placeholder images? *have a placeholder image but with option to upload an image
+     - Default staples: You mentioned default staples that auto-select - should these be pre-populated in the database, or should users mark their own staples as "default"? *users can mark their own staples as default.
