@@ -81,12 +81,17 @@ export default function HistoryPage() {
       const recipeIds = listRecipes?.map(r => r.recipe_id) || []
 
       // Fetch the staple IDs associated with this list
-      const { data: listStaples } = await supabase
+      const { data: listStaples, error: stapleError } = await supabase
         .from('shopping_list_staples')
         .select('staple_id')
         .eq('shopping_list_id', list.id)
 
+      if (stapleError) {
+        console.error('Error loading staple IDs:', stapleError)
+      }
+
       const stapleIds = listStaples?.map(s => s.staple_id) || []
+      console.log('Loaded staple IDs from history:', stapleIds)
 
       // Set the loaded list in context
       setLoadedList({

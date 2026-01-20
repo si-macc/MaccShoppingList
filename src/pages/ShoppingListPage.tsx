@@ -451,9 +451,12 @@ export default function ShoppingListPage() {
           shopping_list_id: savedList.id,
           recipe_id: recipeId
         }))
-        await supabase
+        const { error: recipeError } = await supabase
           .from('shopping_list_recipes')
           .insert(recipeLinks)
+        if (recipeError) {
+          console.error('Error saving recipe links:', recipeError)
+        }
       }
 
       // Save the staple IDs to the junction table
@@ -463,9 +466,12 @@ export default function ShoppingListPage() {
           shopping_list_id: savedList.id,
           staple_id: stapleId
         }))
-        await supabase
+        const { error: stapleError } = await supabase
           .from('shopping_list_staples')
           .insert(stapleLinks)
+        if (stapleError) {
+          console.error('Error saving staple links:', stapleError)
+        }
       }
 
       setShoppingList({
