@@ -457,6 +457,169 @@ export default function ShoppingListPage() {
     setActiveTab('recipes')
   }
 
+  const handleAddRecipesToList = async (recipeIds: string[]) => {
+    if (!shoppingList?.id) return
+
+    // Get ingredients from selected recipes
+    const recipesToAdd = recipes.filter(r => recipeIds.includes(r.id))
+    const newItems: any[] = []
+
+    for (const recipe of recipesToAdd) {
+      for (const ri of recipe.recipe_ingredients) {
+        if (ri.ingredient) {
+          newItems.push({
+            name: ri.ingredient.name,
+            sector: ri.ingredient.sector?.name || 'Other',
+            sector_id: ri.ingredient.sector_id,
+            quantity: ri.quantity,
+            unit: ri.unit,
+            from_recipe: recipe.name
+          })
+        }
+      }
+    }
+
+    // Consolidate new items with existing items
+    const existingItemsMap = new Map<string, any>()
+    for (const item of shoppingList.items) {
+      const key = item.name.toLowerCase().trim()
+      existingItemsMap.set(key, { ...item })
+    }
+
+    // Process new items
+    const itemsToInsertInDb: any[] = []
+    
+    for (const item of newItems) {
+      const key = item.name.toLowerCase().trim()
+      
+      if (existingItemsMap.has(key)) {
+        // Item exists - update requirements if needed
+        const existing = existingItemsMap.get(key)
+        const newReq: any = {}
+        if (item.quantity) {
+          newReq.quantity = item.quantity
+          newReq.unit = item.unit || ''
+        }
+        if (item.from_recipe) {
+          newReq.source = item.from_recipe
+        }
+        
+        if (!existing.requirements) {
+          existing.requirements = []
+        }
+        
+        // Check if this requirement already exists
+        const isDuplicate = existing.requirements.some((r: any) => 
+          r.quantity === newReq.quantity && 
+          r.unit === newReq.unit && 
+          r.source === newReq.source
+        )
+        
+        if (!isDuplicate && (newReq.quantity || newReq.source)) {
+          existing.requirements.push(newReq)
+          
+          // Update the database item with new quantity string
+          if (existing.db_id) {
+            const quantityStr = existing.requirements
+              .map((r: any) => {
+                const parts = []
+                if (r.quantity) parts.push(`${r.quantity}${r.unit || ''}`)
+                if (r.source) parts.push(`(${r.source})`)
+                return parts.join(' ')
+              })
+              .filter(Boolean)
+              .join(', ') || null
+            
+            await supabase
+              .from('shopping_list_items')
+              .update({ quantity: quantityStr })
+              .eq('id', existing.db_id)
+          }
+        }
+      } else {
+        // New item - add to map and prepare for db insert
+        const requirements: any[] = []
+        const req: any = {}
+        if (item.quantity) {
+          req.quantity = item.quantity
+          req.unit = item.unit || ''
+        }
+        if (item.from_recipe) {
+          req.source = item.from_recipe
+        }
+        if (req.quantity || req.source) {
+          requirements.push(req)
+        }
+        
+        const newItem = {
+          name: item.name,
+          sector: item.sector,
+          sector_id: item.sector_id,
+          requirements,
+          is_checked: false
+        }
+        
+        existingItemsMap.set(key, newItem)
+        itemsToInsertInDb.push(newItem)
+      }
+    }
+
+    // Insert new items to database
+    if (itemsToInsertInDb.length > 0) {
+      const dbItems = itemsToInsertInDb.map(item => {
+        const quantityStr = item.requirements
+          .map((r: any) => {
+            const parts = []
+            if (r.quantity) parts.push(`${r.quantity}${r.unit || ''}`)
+            if (r.source) parts.push(`(${r.source})`)
+            return parts.join(' ')
+          })
+          .filter(Boolean)
+          .join(', ') || null
+        
+        return {
+          shopping_list_id: shoppingList.id,
+          item_name: item.name,
+          sector_id: item.sector_id,
+          quantity: quantityStr,
+          is_checked: false
+        }
+      })
+
+      const { data: savedItems, error } = await supabase
+        .from('shopping_list_items')
+        .insert(dbItems)
+        .select()
+
+      if (error) throw error
+
+      // Update the new items with their db_ids
+      savedItems?.forEach((saved, idx) => {
+        const key = itemsToInsertInDb[idx].name.toLowerCase().trim()
+        const item = existingItemsMap.get(key)
+        if (item) {
+          item.db_id = saved.id
+        }
+      })
+    }
+
+    // Rebuild the shopping list state
+    const updatedItems = Array.from(existingItemsMap.values())
+    const updatedGrouped = updatedItems.reduce((acc, item) => {
+      if (!acc[item.sector]) {
+        acc[item.sector] = []
+      }
+      acc[item.sector].push(item)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    setShoppingList({
+      ...shoppingList,
+      items: updatedItems,
+      grouped: updatedGrouped
+    })
+  }
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -472,6 +635,8 @@ export default function ShoppingListPage() {
         shoppingList={shoppingList}
         onBack={handleBackToSelection}
         onNewList={handleNewList}
+        recipes={recipes}
+        onAddRecipes={handleAddRecipesToList}
       />
     )
   }
