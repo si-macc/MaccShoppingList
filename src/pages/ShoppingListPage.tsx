@@ -66,13 +66,19 @@ export default function ShoppingListPage() {
         return acc
       }, {} as Record<string, any[]>)
 
+      // Set the selected recipe IDs from the loaded list
+      if (loadedList.recipeIds && loadedList.recipeIds.length > 0) {
+        setSelectedRecipeIds(new Set(loadedList.recipeIds))
+      }
+
       setShoppingList({
         id: loadedList.id,
         name: loadedList.name,
         items: itemsWithIds,
         grouped,
         createdAt: new Date().toISOString(),
-        isLoaded: true
+        isLoaded: true,
+        recipeIds: loadedList.recipeIds || []
       })
       setViewMode('list')
       clearLoadedList()
@@ -424,12 +430,25 @@ export default function ShoppingListPage() {
         return acc
       }, {} as Record<string, any[]>)
 
+      // Save the recipe IDs to the junction table
+      const recipeIdsArray = Array.from(selectedRecipeIds)
+      if (recipeIdsArray.length > 0) {
+        const recipeLinks = recipeIdsArray.map(recipeId => ({
+          shopping_list_id: savedList.id,
+          recipe_id: recipeId
+        }))
+        await supabase
+          .from('shopping_list_recipes')
+          .insert(recipeLinks)
+      }
+
       setShoppingList({
         id: savedList.id,
         name: listName,
         items: itemsWithIds,
         grouped: groupedWithIds,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        recipeIds: recipeIdsArray
       })
     } catch (error) {
       console.error('Error auto-saving list:', error)
@@ -613,10 +632,33 @@ export default function ShoppingListPage() {
       return acc
     }, {} as Record<string, any[]>)
 
+    // Save the new recipe IDs to the junction table
+    const newRecipeLinks = recipeIds.map(recipeId => ({
+      shopping_list_id: shoppingList.id,
+      recipe_id: recipeId
+    }))
+    
+    if (newRecipeLinks.length > 0) {
+      // Use upsert to avoid duplicates
+      await supabase
+        .from('shopping_list_recipes')
+        .upsert(newRecipeLinks, { onConflict: 'shopping_list_id,recipe_id' })
+    }
+
+    // Update selectedRecipeIds state
+    const newSelectedRecipeIds = new Set(selectedRecipeIds)
+    recipeIds.forEach(id => newSelectedRecipeIds.add(id))
+    setSelectedRecipeIds(newSelectedRecipeIds)
+
+    // Update shopping list with new recipe IDs
+    const existingRecipeIds = shoppingList.recipeIds || []
+    const allRecipeIds = [...new Set([...existingRecipeIds, ...recipeIds])]
+
     setShoppingList({
       ...shoppingList,
       items: updatedItems,
-      grouped: updatedGrouped
+      grouped: updatedGrouped,
+      recipeIds: allRecipeIds
     })
   }
 
@@ -827,6 +869,7 @@ export default function ShoppingListPage() {
                   key={recipe.id}
                   recipe={recipe}
                   isSelected={selectedRecipeIds.has(recipe.id)}
+                  isInCurrentList={shoppingList?.recipeIds?.includes(recipe.id) || false}
                   onToggle={() => toggleRecipe(recipe.id)}
                   onEdit={() => setEditingRecipe(recipe)}
                   onDelete={() => handleDeleteRecipe(recipe.id)}

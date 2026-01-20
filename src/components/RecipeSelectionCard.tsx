@@ -4,12 +4,13 @@ import { PencilIcon, TrashIcon, ForkKnifePlateIcon } from './Icons'
 interface RecipeSelectionCardProps {
   recipe: RecipeWithIngredients
   isSelected: boolean
+  isInCurrentList?: boolean  // Indicates recipe is part of the loaded shopping list
   onToggle: () => void
   onEdit?: (recipe: RecipeWithIngredients) => void
   onDelete?: (id: string) => void
 }
 
-export default function RecipeSelectionCard({ recipe, isSelected, onToggle, onEdit, onDelete }: RecipeSelectionCardProps) {
+export default function RecipeSelectionCard({ recipe, isSelected, isInCurrentList, onToggle, onEdit, onDelete }: RecipeSelectionCardProps) {
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
     onEdit?.(recipe)
@@ -45,6 +46,12 @@ export default function RecipeSelectionCard({ recipe, isSelected, onToggle, onEd
         {isSelected && (
           <div className="absolute top-2 right-2 bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
             ✓
+          </div>
+        )}
+        {/* Badge showing recipe is in current shopping list */}
+        {isInCurrentList && !isSelected && (
+          <div className="absolute bottom-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow">
+            In List
           </div>
         )}
         {/* Edit/Delete buttons */}

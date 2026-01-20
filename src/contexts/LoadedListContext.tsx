@@ -13,6 +13,7 @@ interface LoadedList {
   id: string
   name: string
   items: LoadedListItem[]
+  recipeIds?: string[]  // Track which recipes were used
 }
 
 interface LoadedListContextType {
