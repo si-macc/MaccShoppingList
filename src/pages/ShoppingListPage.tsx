@@ -151,9 +151,11 @@ export default function ShoppingListPage() {
     }
     if (staplesData) {
       setStaples(staplesData)
-      // Auto-select default staples
-      const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
-      setSelectedStapleIds(new Set(defaultIds))
+      // Auto-select default staples only if not loading from history
+      if (!loadedList) {
+        const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
+        setSelectedStapleIds(new Set(defaultIds))
+      }
     }
 
     // Fetch sectors ordered by display_order
@@ -733,10 +735,6 @@ export default function ShoppingListPage() {
                 </button>
               )}
             </div>
-          </div>
-        </div>
-              <span>Generate List</span>
-            </button>
           </div>
         </div>
         
