@@ -71,6 +71,11 @@ export default function ShoppingListPage() {
         setSelectedRecipeIds(new Set(loadedList.recipeIds))
       }
 
+      // Set the selected staple IDs from the loaded list
+      if (loadedList.stapleIds && loadedList.stapleIds.length > 0) {
+        setSelectedStapleIds(new Set(loadedList.stapleIds))
+      }
+
       setShoppingList({
         id: loadedList.id,
         name: loadedList.name,
@@ -78,7 +83,8 @@ export default function ShoppingListPage() {
         grouped,
         createdAt: new Date().toISOString(),
         isLoaded: true,
-        recipeIds: loadedList.recipeIds || []
+        recipeIds: loadedList.recipeIds || [],
+        stapleIds: loadedList.stapleIds || []
       })
       setViewMode('list')
       clearLoadedList()
@@ -442,13 +448,26 @@ export default function ShoppingListPage() {
           .insert(recipeLinks)
       }
 
+      // Save the staple IDs to the junction table
+      const stapleIdsArray = Array.from(selectedStapleIds)
+      if (stapleIdsArray.length > 0) {
+        const stapleLinks = stapleIdsArray.map(stapleId => ({
+          shopping_list_id: savedList.id,
+          staple_id: stapleId
+        }))
+        await supabase
+          .from('shopping_list_staples')
+          .insert(stapleLinks)
+      }
+
       setShoppingList({
         id: savedList.id,
         name: listName,
         items: itemsWithIds,
         grouped: groupedWithIds,
         createdAt: new Date().toISOString(),
-        recipeIds: recipeIdsArray
+        recipeIds: recipeIdsArray,
+        stapleIds: stapleIdsArray
       })
     } catch (error) {
       console.error('Error auto-saving list:', error)
@@ -476,17 +495,18 @@ export default function ShoppingListPage() {
     setActiveTab('recipes')
   }
 
-  const handleAddRecipesToList = async (recipeIds: string[]) => {
+  const handleUpdateExistingList = async () => {
     if (!shoppingList?.id) return
 
-    // Get ingredients from selected recipes
-    const recipesToAdd = recipes.filter(r => recipeIds.includes(r.id))
-    const newItems: any[] = []
+    // Build new items from current selections
+    const rawItems: any[] = []
 
-    for (const recipe of recipesToAdd) {
+    // Add ingredients from selected recipes
+    const selectedRecipes = recipes.filter(r => selectedRecipeIds.has(r.id))
+    for (const recipe of selectedRecipes) {
       for (const ri of recipe.recipe_ingredients) {
         if (ri.ingredient) {
-          newItems.push({
+          rawItems.push({
             name: ri.ingredient.name,
             sector: ri.ingredient.sector?.name || 'Other',
             sector_id: ri.ingredient.sector_id,
@@ -498,94 +518,81 @@ export default function ShoppingListPage() {
       }
     }
 
-    // Consolidate new items with existing items
-    const existingItemsMap = new Map<string, any>()
-    for (const item of shoppingList.items) {
-      const key = item.name.toLowerCase().trim()
-      existingItemsMap.set(key, { ...item })
+    // Add selected staples
+    const selectedStaplesData = staples.filter(s => selectedStapleIds.has(s.id))
+    for (const staple of selectedStaplesData) {
+      rawItems.push({
+        name: staple.name,
+        sector: staple.sector?.name || 'Other',
+        sector_id: staple.sector_id,
+        quantity: null,
+        unit: null,
+        from_staple: true
+      })
     }
 
-    // Process new items
-    const itemsToInsertInDb: any[] = []
-    
-    for (const item of newItems) {
+    // Consolidate items
+    const consolidatedMap = new Map<string, any>()
+    for (const item of rawItems) {
       const key = item.name.toLowerCase().trim()
-      
-      if (existingItemsMap.has(key)) {
-        // Item exists - update requirements if needed
-        const existing = existingItemsMap.get(key)
-        const newReq: any = {}
+      if (consolidatedMap.has(key)) {
+        const existing = consolidatedMap.get(key)
+        const requirement: any = {}
         if (item.quantity) {
-          newReq.quantity = item.quantity
-          newReq.unit = item.unit || ''
+          requirement.quantity = item.quantity
+          requirement.unit = item.unit || ''
         }
         if (item.from_recipe) {
-          newReq.source = item.from_recipe
+          requirement.source = item.from_recipe
+        } else if (item.from_staple) {
+          requirement.source = 'Staple'
         }
-        
-        if (!existing.requirements) {
-          existing.requirements = []
-        }
-        
-        // Check if this requirement already exists
-        const isDuplicate = existing.requirements.some((r: any) => 
-          r.quantity === newReq.quantity && 
-          r.unit === newReq.unit && 
-          r.source === newReq.source
-        )
-        
-        if (!isDuplicate && (newReq.quantity || newReq.source)) {
-          existing.requirements.push(newReq)
-          
-          // Update the database item with new quantity string
-          if (existing.db_id) {
-            const quantityStr = existing.requirements
-              .map((r: any) => {
-                const parts = []
-                if (r.quantity) parts.push(`${r.quantity}${r.unit || ''}`)
-                if (r.source) parts.push(`(${r.source})`)
-                return parts.join(' ')
-              })
-              .filter(Boolean)
-              .join(', ') || null
-            
-            await supabase
-              .from('shopping_list_items')
-              .update({ quantity: quantityStr })
-              .eq('id', existing.db_id)
+        if (requirement.quantity || requirement.source) {
+          const isDuplicate = existing.requirements.some((r: any) => 
+            r.quantity === requirement.quantity && 
+            r.unit === requirement.unit && 
+            r.source === requirement.source
+          )
+          if (!isDuplicate) {
+            existing.requirements.push(requirement)
           }
         }
       } else {
-        // New item - add to map and prepare for db insert
         const requirements: any[] = []
-        const req: any = {}
+        const requirement: any = {}
         if (item.quantity) {
-          req.quantity = item.quantity
-          req.unit = item.unit || ''
+          requirement.quantity = item.quantity
+          requirement.unit = item.unit || ''
         }
         if (item.from_recipe) {
-          req.source = item.from_recipe
+          requirement.source = item.from_recipe
+        } else if (item.from_staple) {
+          requirement.source = 'Staple'
         }
-        if (req.quantity || req.source) {
-          requirements.push(req)
+        if (requirement.quantity || requirement.source) {
+          requirements.push(requirement)
         }
         
-        const newItem = {
+        consolidatedMap.set(key, {
           name: item.name,
           sector: item.sector,
           sector_id: item.sector_id,
-          requirements,
-          is_checked: false
-        }
-        
-        existingItemsMap.set(key, newItem)
-        itemsToInsertInDb.push(newItem)
+          requirements
+        })
       }
     }
 
-    // Insert new items to database
-    if (itemsToInsertInDb.length > 0) {
-      const dbItems = itemsToInsertInDb.map(item => {
+    const newItems = Array.from(consolidatedMap.values())
+
+    try {
+      // Delete existing items from the list
+      await supabase
+        .from('shopping_list_items')
+        .delete()
+        .eq('shopping_list_id', shoppingList.id)
+
+      // Insert new items
+      const itemsToInsert = newItems.map((item: any) => {
         const quantityStr = item.requirements
           .map((r: any) => {
             const parts = []
@@ -605,61 +612,76 @@ export default function ShoppingListPage() {
         }
       })
 
-      const { data: savedItems, error } = await supabase
+      const { data: savedItems, error: itemsError } = await supabase
         .from('shopping_list_items')
-        .insert(dbItems)
+        .insert(itemsToInsert)
         .select()
 
-      if (error) throw error
+      if (itemsError) throw itemsError
 
-      // Update the new items with their db_ids
-      savedItems?.forEach((saved, idx) => {
-        const key = itemsToInsertInDb[idx].name.toLowerCase().trim()
-        const item = existingItemsMap.get(key)
-        if (item) {
-          item.db_id = saved.id
-        }
-      })
-    }
-
-    // Rebuild the shopping list state
-    const updatedItems = Array.from(existingItemsMap.values())
-    const updatedGrouped = updatedItems.reduce((acc, item) => {
-      if (!acc[item.sector]) {
-        acc[item.sector] = []
-      }
-      acc[item.sector].push(item)
-      return acc
-    }, {} as Record<string, any[]>)
-
-    // Save the new recipe IDs to the junction table
-    const newRecipeLinks = recipeIds.map(recipeId => ({
-      shopping_list_id: shoppingList.id,
-      recipe_id: recipeId
-    }))
-    
-    if (newRecipeLinks.length > 0) {
-      // Use upsert to avoid duplicates
+      // Update recipe associations
       await supabase
         .from('shopping_list_recipes')
-        .upsert(newRecipeLinks, { onConflict: 'shopping_list_id,recipe_id' })
+        .delete()
+        .eq('shopping_list_id', shoppingList.id)
+
+      const recipeIdsArray = Array.from(selectedRecipeIds)
+      if (recipeIdsArray.length > 0) {
+        const recipeLinks = recipeIdsArray.map(recipeId => ({
+          shopping_list_id: shoppingList.id,
+          recipe_id: recipeId
+        }))
+        await supabase
+          .from('shopping_list_recipes')
+          .insert(recipeLinks)
+      }
+
+      // Update staple associations
+      await supabase
+        .from('shopping_list_staples')
+        .delete()
+        .eq('shopping_list_id', shoppingList.id)
+
+      const stapleIdsArray = Array.from(selectedStapleIds)
+      if (stapleIdsArray.length > 0) {
+        const stapleLinks = stapleIdsArray.map(stapleId => ({
+          shopping_list_id: shoppingList.id,
+          staple_id: stapleId
+        }))
+        await supabase
+          .from('shopping_list_staples')
+          .insert(stapleLinks)
+      }
+
+      // Map database IDs back to items
+      const itemsWithIds = newItems.map((item, index) => ({
+        ...item,
+        db_id: savedItems[index]?.id,
+        is_checked: false
+      }))
+
+      // Update grouped with db_ids
+      const groupedWithIds = itemsWithIds.reduce((acc, item) => {
+        if (!acc[item.sector]) {
+          acc[item.sector] = []
+        }
+        acc[item.sector].push(item)
+        return acc
+      }, {} as Record<string, any[]>)
+
+      setShoppingList({
+        ...shoppingList,
+        items: itemsWithIds,
+        grouped: groupedWithIds,
+        recipeIds: recipeIdsArray,
+        stapleIds: stapleIdsArray
+      })
+
+      setViewMode('list')
+    } catch (error) {
+      console.error('Error updating list:', error)
+      alert('Failed to update shopping list')
     }
-
-    // Update selectedRecipeIds state
-    const newSelectedRecipeIds = new Set(selectedRecipeIds)
-    recipeIds.forEach(id => newSelectedRecipeIds.add(id))
-    setSelectedRecipeIds(newSelectedRecipeIds)
-
-    // Update shopping list with new recipe IDs
-    const existingRecipeIds = shoppingList.recipeIds || []
-    const allRecipeIds = [...new Set([...existingRecipeIds, ...recipeIds])]
-
-    setShoppingList({
-      ...shoppingList,
-      items: updatedItems,
-      grouped: updatedGrouped,
-      recipeIds: allRecipeIds
-    })
   }
 
   if (loading) {
@@ -677,8 +699,6 @@ export default function ShoppingListPage() {
         shoppingList={shoppingList}
         onBack={handleBackToSelection}
         onNewList={handleNewList}
-        recipes={recipes}
-        onAddRecipes={handleAddRecipesToList}
       />
     )
   }
@@ -693,12 +713,28 @@ export default function ShoppingListPage() {
             <span className="text-sm text-gray-600 dark:text-gray-300">
               {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
             </span>
-            <button
-              onClick={handleGenerateList}
-              disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
-              className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ShoppingCartIcon className="w-5 h-5" />
+            <div className="flex gap-2">
+              <button
+                onClick={handleGenerateList}
+                disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCartIcon className="w-5 h-5" />
+                <span>New List</span>
+              </button>
+              {shoppingList && (
+                <button
+                  onClick={handleUpdateExistingList}
+                  disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+                  className="flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ShoppingCartIcon className="w-5 h-5" />
+                  <span>Update List</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
               <span>Generate List</span>
             </button>
           </div>
