@@ -66,24 +66,42 @@ export default function ShoppingListPage() {
         return acc
       }, {} as Record<string, any[]>)
 
+      // Set the selected recipe IDs from the loaded list
+      if (loadedList.recipeIds && loadedList.recipeIds.length > 0) {
+        setSelectedRecipeIds(new Set(loadedList.recipeIds))
+      }
+
+      // Set the selected staple IDs from the loaded list
+      if (loadedList.stapleIds && loadedList.stapleIds.length > 0) {
+        setSelectedStapleIds(new Set(loadedList.stapleIds))
+      }
+
       setShoppingList({
         id: loadedList.id,
         name: loadedList.name,
         items: itemsWithIds,
         grouped,
         createdAt: new Date().toISOString(),
-        isLoaded: true
+        isLoaded: true,
+        recipeIds: loadedList.recipeIds || [],
+        stapleIds: loadedList.stapleIds || []
       })
       setViewMode('list')
+      
+      // Fetch data but skip setting default staples since we're loading from history
+      fetchData(true)
       clearLoadedList()
     }
   }, [loadedList, clearLoadedList])
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    // Only fetch with defaults if not coming from history
+    if (!loadedList) {
+      fetchData()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchData = async () => {
+  const fetchData = async (skipDefaultStaples = false) => {
     setLoading(true)
     
     // Fetch recipes with ingredients (including sector join)
@@ -139,9 +157,11 @@ export default function ShoppingListPage() {
     }
     if (staplesData) {
       setStaples(staplesData)
-      // Auto-select default staples
-      const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
-      setSelectedStapleIds(new Set(defaultIds))
+      // Auto-select default staples only if not loading from history
+      if (!skipDefaultStaples) {
+        const defaultIds = staplesData.filter(s => s.is_default).map(s => s.id)
+        setSelectedStapleIds(new Set(defaultIds))
+      }
     }
 
     // Fetch sectors ordered by display_order
@@ -424,12 +444,44 @@ export default function ShoppingListPage() {
         return acc
       }, {} as Record<string, any[]>)
 
+      // Save the recipe IDs to the junction table
+      const recipeIdsArray = Array.from(selectedRecipeIds)
+      if (recipeIdsArray.length > 0) {
+        const recipeLinks = recipeIdsArray.map(recipeId => ({
+          shopping_list_id: savedList.id,
+          recipe_id: recipeId
+        }))
+        const { error: recipeError } = await supabase
+          .from('shopping_list_recipes')
+          .insert(recipeLinks)
+        if (recipeError) {
+          console.error('Error saving recipe links:', recipeError)
+        }
+      }
+
+      // Save the staple IDs to the junction table
+      const stapleIdsArray = Array.from(selectedStapleIds)
+      if (stapleIdsArray.length > 0) {
+        const stapleLinks = stapleIdsArray.map(stapleId => ({
+          shopping_list_id: savedList.id,
+          staple_id: stapleId
+        }))
+        const { error: stapleError } = await supabase
+          .from('shopping_list_staples')
+          .insert(stapleLinks)
+        if (stapleError) {
+          console.error('Error saving staple links:', stapleError)
+        }
+      }
+
       setShoppingList({
         id: savedList.id,
         name: listName,
         items: itemsWithIds,
         grouped: groupedWithIds,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        recipeIds: recipeIdsArray,
+        stapleIds: stapleIdsArray
       })
     } catch (error) {
       console.error('Error auto-saving list:', error)
@@ -455,6 +507,195 @@ export default function ShoppingListPage() {
     setShoppingList(null)
     setViewMode('selection')
     setActiveTab('recipes')
+  }
+
+  const handleUpdateExistingList = async () => {
+    if (!shoppingList?.id) return
+
+    // Build new items from current selections
+    const rawItems: any[] = []
+
+    // Add ingredients from selected recipes
+    const selectedRecipes = recipes.filter(r => selectedRecipeIds.has(r.id))
+    for (const recipe of selectedRecipes) {
+      for (const ri of recipe.recipe_ingredients) {
+        if (ri.ingredient) {
+          rawItems.push({
+            name: ri.ingredient.name,
+            sector: ri.ingredient.sector?.name || 'Other',
+            sector_id: ri.ingredient.sector_id,
+            quantity: ri.quantity,
+            unit: ri.unit,
+            from_recipe: recipe.name
+          })
+        }
+      }
+    }
+
+    // Add selected staples
+    const selectedStaplesData = staples.filter(s => selectedStapleIds.has(s.id))
+    for (const staple of selectedStaplesData) {
+      rawItems.push({
+        name: staple.name,
+        sector: staple.sector?.name || 'Other',
+        sector_id: staple.sector_id,
+        quantity: null,
+        unit: null,
+        from_staple: true
+      })
+    }
+
+    // Consolidate items
+    const consolidatedMap = new Map<string, any>()
+    for (const item of rawItems) {
+      const key = item.name.toLowerCase().trim()
+      if (consolidatedMap.has(key)) {
+        const existing = consolidatedMap.get(key)
+        const requirement: any = {}
+        if (item.quantity) {
+          requirement.quantity = item.quantity
+          requirement.unit = item.unit || ''
+        }
+        if (item.from_recipe) {
+          requirement.source = item.from_recipe
+        } else if (item.from_staple) {
+          requirement.source = 'Staple'
+        }
+        if (requirement.quantity || requirement.source) {
+          const isDuplicate = existing.requirements.some((r: any) => 
+            r.quantity === requirement.quantity && 
+            r.unit === requirement.unit && 
+            r.source === requirement.source
+          )
+          if (!isDuplicate) {
+            existing.requirements.push(requirement)
+          }
+        }
+      } else {
+        const requirements: any[] = []
+        const requirement: any = {}
+        if (item.quantity) {
+          requirement.quantity = item.quantity
+          requirement.unit = item.unit || ''
+        }
+        if (item.from_recipe) {
+          requirement.source = item.from_recipe
+        } else if (item.from_staple) {
+          requirement.source = 'Staple'
+        }
+        if (requirement.quantity || requirement.source) {
+          requirements.push(requirement)
+        }
+        
+        consolidatedMap.set(key, {
+          name: item.name,
+          sector: item.sector,
+          sector_id: item.sector_id,
+          requirements
+        })
+      }
+    }
+
+    const newItems = Array.from(consolidatedMap.values())
+
+    try {
+      // Delete existing items from the list
+      await supabase
+        .from('shopping_list_items')
+        .delete()
+        .eq('shopping_list_id', shoppingList.id)
+
+      // Insert new items
+      const itemsToInsert = newItems.map((item: any) => {
+        const quantityStr = item.requirements
+          .map((r: any) => {
+            const parts = []
+            if (r.quantity) parts.push(`${r.quantity}${r.unit || ''}`)
+            if (r.source) parts.push(`(${r.source})`)
+            return parts.join(' ')
+          })
+          .filter(Boolean)
+          .join(', ') || null
+        
+        return {
+          shopping_list_id: shoppingList.id,
+          item_name: item.name,
+          sector_id: item.sector_id,
+          quantity: quantityStr,
+          is_checked: false
+        }
+      })
+
+      const { data: savedItems, error: itemsError } = await supabase
+        .from('shopping_list_items')
+        .insert(itemsToInsert)
+        .select()
+
+      if (itemsError) throw itemsError
+
+      // Update recipe associations
+      await supabase
+        .from('shopping_list_recipes')
+        .delete()
+        .eq('shopping_list_id', shoppingList.id)
+
+      const recipeIdsArray = Array.from(selectedRecipeIds)
+      if (recipeIdsArray.length > 0) {
+        const recipeLinks = recipeIdsArray.map(recipeId => ({
+          shopping_list_id: shoppingList.id,
+          recipe_id: recipeId
+        }))
+        await supabase
+          .from('shopping_list_recipes')
+          .insert(recipeLinks)
+      }
+
+      // Update staple associations
+      await supabase
+        .from('shopping_list_staples')
+        .delete()
+        .eq('shopping_list_id', shoppingList.id)
+
+      const stapleIdsArray = Array.from(selectedStapleIds)
+      if (stapleIdsArray.length > 0) {
+        const stapleLinks = stapleIdsArray.map(stapleId => ({
+          shopping_list_id: shoppingList.id,
+          staple_id: stapleId
+        }))
+        await supabase
+          .from('shopping_list_staples')
+          .insert(stapleLinks)
+      }
+
+      // Map database IDs back to items
+      const itemsWithIds = newItems.map((item, index) => ({
+        ...item,
+        db_id: savedItems[index]?.id,
+        is_checked: false
+      }))
+
+      // Update grouped with db_ids
+      const groupedWithIds = itemsWithIds.reduce((acc, item) => {
+        if (!acc[item.sector]) {
+          acc[item.sector] = []
+        }
+        acc[item.sector].push(item)
+        return acc
+      }, {} as Record<string, any[]>)
+
+      setShoppingList({
+        ...shoppingList,
+        items: itemsWithIds,
+        grouped: groupedWithIds,
+        recipeIds: recipeIdsArray,
+        stapleIds: stapleIdsArray
+      })
+
+      setViewMode('list')
+    } catch (error) {
+      console.error('Error updating list:', error)
+      alert('Failed to update shopping list')
+    }
   }
 
   if (loading) {
@@ -486,14 +727,26 @@ export default function ShoppingListPage() {
             <span className="text-sm text-gray-600 dark:text-gray-300">
               {selectedRecipeIds.size} recipes, {selectedStapleIds.size} staples selected
             </span>
-            <button
-              onClick={handleGenerateList}
-              disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
-              className="flex items-center space-x-2 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ShoppingCartIcon className="w-5 h-5" />
-              <span>Generate List</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleGenerateList}
+                disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCartIcon className="w-5 h-5" />
+                <span>New List</span>
+              </button>
+              {shoppingList && (
+                <button
+                  onClick={handleUpdateExistingList}
+                  disabled={selectedRecipeIds.size === 0 && selectedStapleIds.size === 0}
+                  className="flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ShoppingCartIcon className="w-5 h-5" />
+                  <span>Update List</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
         
@@ -662,6 +915,7 @@ export default function ShoppingListPage() {
                   key={recipe.id}
                   recipe={recipe}
                   isSelected={selectedRecipeIds.has(recipe.id)}
+                  isInCurrentList={shoppingList?.recipeIds?.includes(recipe.id) || false}
                   onToggle={() => toggleRecipe(recipe.id)}
                   onEdit={() => setEditingRecipe(recipe)}
                   onDelete={() => handleDeleteRecipe(recipe.id)}

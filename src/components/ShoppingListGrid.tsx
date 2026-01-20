@@ -130,34 +130,47 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
 
     setSaving(true)
     try {
-      // Create shopping list
-      const { data: savedList, error: listError } = await supabase
-        .from('shopping_lists')
-        .insert({
-          name: listName.trim(),
-          completed_at: null
-        })
-        .select()
-        .single()
+      if (shoppingList?.id) {
+        // Update existing list name (Save As / Rename)
+        const { error } = await supabase
+          .from('shopping_lists')
+          .update({ name: listName.trim() })
+          .eq('id', shoppingList.id)
 
-      if (listError) throw listError
+        if (error) throw error
+        
+        alert('Shopping list renamed successfully!')
+      } else {
+        // Create new shopping list (fallback for unsaved lists)
+        const { data: savedList, error: listError } = await supabase
+          .from('shopping_lists')
+          .insert({
+            name: listName.trim(),
+            completed_at: null
+          })
+          .select()
+          .single()
 
-      // Insert all items
-      const itemsToInsert = shoppingList.items.map((item: any) => ({
-        shopping_list_id: savedList.id,
-        item_name: item.name,
-        sector_id: item.sector_id,
-        quantity: item.quantity,
-        is_checked: false
-      }))
+        if (listError) throw listError
 
-      const { error: itemsError } = await supabase
-        .from('shopping_list_items')
-        .insert(itemsToInsert)
+        // Insert all items
+        const itemsToInsert = shoppingList.items.map((item: any) => ({
+          shopping_list_id: savedList.id,
+          item_name: item.name,
+          sector_id: item.sector_id,
+          quantity: item.quantity,
+          is_checked: false
+        }))
 
-      if (itemsError) throw itemsError
+        const { error: itemsError } = await supabase
+          .from('shopping_list_items')
+          .insert(itemsToInsert)
 
-      alert('Shopping list saved successfully!')
+        if (itemsError) throw itemsError
+
+        alert('Shopping list saved successfully!')
+      }
+      
       setShowSaveModal(false)
       setListName('')
     } catch (error) {
@@ -252,7 +265,11 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
           </button>
           
           <button
-            onClick={() => setShowSaveModal(true)}
+            onClick={() => {
+              // Pre-fill with current list name for renaming
+              setListName(shoppingList?.name || '')
+              setShowSaveModal(true)
+            }}
             className="w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg hover:scale-110 transition-transform shadow-md hover:shadow-lg"
             title="Save list"
           >
@@ -388,11 +405,13 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
         </div>
       </div>
 
-      {/* Save Modal */}
+      {/* Save/Rename Modal */}
       {showSaveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Save Shopping List</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {shoppingList?.id ? 'Rename Shopping List' : 'Save Shopping List'}
+            </h3>
             <input
               type="text"
               value={listName}
@@ -416,7 +435,7 @@ export default function ShoppingListGrid({ shoppingList, onBack, onNewList }: Sh
                 disabled={saving}
                 className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? 'Saving...' : (shoppingList?.id ? 'Rename' : 'Save')}
               </button>
             </div>
           </div>
